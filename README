@@ -1,0 +1,16 @@
+mcfs
+====
+mcfs is a Multi-criteria Collaborative Filtering System designed for the
+Intelligent Recommendation Systems and Decision-Support Systems course
+within the Master in Artificial Intelligence, Pattern Recognition and
+Digital Imaging (MIARFID) at the Universitat Politècnica de València (UPV).
+
+Author
+======
+Joan Puigcerver <joapuipe@gmail.com>
+
+Requirements
+============
+- C++ compiler, supporting the C++11 extension. Recommended: g++
+- gflags, http://code.google.com/p/gflags/
+- glog, http://code.google.com/p/google-glog/
