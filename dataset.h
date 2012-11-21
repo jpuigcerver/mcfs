@@ -22,4 +22,7 @@ struct Dataset {
   static void partition(Dataset * original, Dataset * partition, float f);
 };
 
+extern float RMSE(const std::vector<Rating>& a, const std::vector<Rating>& b);
+extern float RMSE(const Dataset& a, const Dataset& b);
+
 #endif  // DATASET_H_

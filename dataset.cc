@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string>
 #include <algorithm>
+#include <arpa/inet.h>
 
 // Parse a header line to extract the number of criteria or the
 // data format.
@@ -55,8 +56,8 @@ bool Dataset::save_file(const char* filename, ds_file_format format) const {
     case BINARY:
       fprintf(fp, "# BINARY\n# %lu\n", criteria_size);
       for (const Rating& rating : ratings) {
-        uint32_t user_le = htole32(rating.user);
-        uint32_t item_le = htole32(rating.item);
+        uint32_t user_le = htonl(rating.user);
+        uint32_t item_le = htonl(rating.item);
         fwrite(&user_le, 4, 1, fp);
         fwrite(&item_le, 4, 1, fp);
         for (float criterion_rating : rating.c_rating) {
@@ -137,8 +138,8 @@ bool Dataset::load_file(const char* filename) {
         fclose(fp);
         return false;
       }
-      rating.user = le32toh(user_le);
-      rating.item = le32toh(item_le);
+      rating.user = ntohl(user_le);
+      rating.item = ntohl(item_le);
       for (uint64_t r = 0; r < criteria; ++r) {
         if (fread(&rating.c_rating[r], 4, 1, fp) == 0) {
           LOG(ERROR) << "Dataset \"" << filename
@@ -172,6 +173,7 @@ void Dataset::print() const {
 void Dataset::partition(Dataset * original, Dataset * partition, float f) {
   random_shuffle(original->ratings.begin(), original->ratings.end());
   partition->ratings.clear();
+  partition->criteria_size = original->criteria_size;
   uint64_t start_pos = static_cast<uint64_t>(f * original->ratings.size());
   for (uint64_t i = start_pos; i < original->ratings.size(); ++i) {
     partition->ratings.push_back(original->ratings[i]);
@@ -186,3 +188,22 @@ Rating::Rating() : user(0), item(0) { }
 
 Rating::Rating(uint32_t user, uint32_t item, uint64_t criteria_size) :
     user(user), item(item), c_rating(criteria_size, 0.0f) { }
+
+float RMSE(const std::vector<Rating>& a, const std::vector<Rating>& b) {
+  CHECK_EQ(a.size(), b.size());
+  float s = 0.0f;
+  for (auto x = a.begin(), y = b.begin(); x != a.end(); ++x, ++y) {
+    CHECK_EQ(x->c_rating.size(), y->c_rating.size());
+    for (uint64_t c = 0; c < x->c_rating.size(); ++c) {
+      LOG(ERROR) << "x(" << c <<") = " << x->c_rating[c]
+                 << ", y(" << c <<") = " << y->c_rating[c];
+      float d = (x->c_rating[c] - y->c_rating[c]);
+      s += d * d;
+    }
+  }
+  return sqrtf(s / a.size());
+}
+
+float RMSE(const Dataset& a, const Dataset& b) {
+  return RMSE(a.ratings, b.ratings);
+}

@@ -96,8 +96,8 @@ int main(int argc, char ** argv) {
                  final_ratings[1], final_ratings[2], final_ratings[3],
                  final_ratings[4]);
         } else {
-          uint32_t user_le = htole32(u);
-          uint32_t item_le = htole32(m);
+          uint32_t user_le = htonl(u);
+          uint32_t item_le = htonl(m);
           fwrite(&user_le, 4, 1, stdout);
           fwrite(&item_le, 4, 1, stdout);
           fwrite(&final_ratings, 4, 5, stdout);
