@@ -1,0 +1,188 @@
+#include <dataset.h>
+
+#include <defines.h>
+#include <glog/logging.h>
+#include <stdio.h>
+#include <string>
+#include <algorithm>
+
+// Parse a header line to extract the number of criteria or the
+// data format.
+// Returns:
+//   0: Parsing error
+//   1: Criteria line
+//   2: Format line
+int parse_header(const char * buff, unsigned int buff_size,
+                 unsigned int* criteria, std::string* format) {
+  unsigned int i = 0, j = 0;
+  if (buff_size == 0 || buff[0] != '#') {
+    return 0;
+  }
+  for (i = 1; i < buff_size && isspace(buff[i]); ++i);
+  if (i == buff_size) {
+    return 0;
+  }
+  if (buff[i] >= '0' && buff[i] <= '9') {
+    *criteria = strtoul(buff+i, NULL, 10);
+    return 1;
+  } else {
+    format->clear();
+    for (j = i; j < buff_size && !isspace(buff[j]); ++j) {
+        format->append(1, buff[j]);
+    }
+    return 2;
+  }
+}
+
+bool Dataset::save_file(const char* filename, ds_file_format format) const {
+  FILE * fp = fopen(filename, "w");
+  if (fp == NULL) {
+    LOG(ERROR) << "Dataset \"" << filename << "\": Failed to open.";
+    return false;
+  }
+  DLOG(INFO) << "Dataset \"" << filename << "\": Opened correctly.";
+  switch (format) {
+    case ASCII:
+      fprintf(fp, "# ASCII\n# %lu\n", criteria_size);
+      for (const Rating& rating : ratings) {
+        fprintf(fp, "%u %u", rating.user, rating.item);
+        for (float criterion_rating : rating.c_rating) {
+          fprintf(fp, " %f", criterion_rating);
+        }
+        fprintf(fp, "\n");
+      }
+      break;
+    case BINARY:
+      fprintf(fp, "# BINARY\n# %lu\n", criteria_size);
+      for (const Rating& rating : ratings) {
+        uint32_t user_le = htole32(rating.user);
+        uint32_t item_le = htole32(rating.item);
+        fwrite(&user_le, 4, 1, fp);
+        fwrite(&item_le, 4, 1, fp);
+        for (float criterion_rating : rating.c_rating) {
+          fwrite(&criterion_rating, 4, 1, fp);
+        }
+      }
+      break;
+  }
+  fclose(fp);
+  return true;
+}
+
+bool Dataset::load_file(const char* filename) {
+  // Open file
+  FILE * fp = fopen(filename, "r");
+  if (fp == NULL) {
+    LOG(ERROR) << "Dataset \"" << filename << "\": Failed to open.";
+    return false;
+  }
+  DLOG(INFO) << "Dataset \"" << filename << "\": Opened correctly.";
+  char buffer[FILE_BUFF_SIZE] = {'\0'};
+  unsigned int criteria = 0;
+  std::string sformat;
+  ds_file_format format = BINARY;
+  for (int header_lines = 0; header_lines < 2; ++header_lines) {
+    if (fgets(buffer, FILE_BUFF_SIZE, fp) == NULL) {
+      LOG(ERROR) << "Dataset \"" << filename << "\": Failed to read.";
+      fclose(fp);
+      return false;
+    }
+    int section = parse_header(buffer, FILE_BUFF_SIZE, &criteria, &sformat);
+    if (section == 1) {
+      // Check criteria
+      DLOG(INFO) << "Dataset \"" << filename << "\": Criteria = " << criteria;
+      if (criteria < 1) {
+        LOG(ERROR) << "Dataset \"" << filename << "\": Bad number of criteria.";
+        fclose(fp);
+        return false;
+      }
+    } else if (section == 2) {
+      DLOG(INFO) << "Dataset \"" << filename << "\": Format = " << sformat;
+      if ("ASCII" == sformat) {
+        format = ASCII;
+      } else if ("BINARY" == sformat) {
+        format = BINARY;
+      } else {
+        LOG(ERROR) << "Dataset \"" << filename << "\": Bad format \""
+                   << sformat << "\"";
+        fclose(fp);
+        return false;
+      }
+    } else {
+      LOG(ERROR) << "Dataset \"" << filename << "\": Bad header \""
+                 << buffer << "\"";
+      fclose(fp);
+      return false;
+    }
+  }
+
+  Rating rating;
+  rating.c_rating.resize(criteria);
+  ratings.clear();
+  criteria_size = criteria;
+  if (format == ASCII) {
+    LOG(ERROR) << "Dataset \"" << filename
+               << "\": ASCII format not implemented.";
+    fclose(fp);
+    return false;
+  } else {
+    while (!feof(fp)) {
+      uint32_t user_le = 0, item_le = 0;
+      if (fread(&user_le, 4, 1, fp) == 0) {
+        break;
+      }
+      if (fread(&item_le, 4, 1, fp) == 0) {
+        LOG(ERROR) << "Dataset \"" << filename
+                   << "\": Bad data.";
+        fclose(fp);
+        return false;
+      }
+      rating.user = le32toh(user_le);
+      rating.item = le32toh(item_le);
+      for (uint64_t r = 0; r < criteria; ++r) {
+        if (fread(&rating.c_rating[r], 4, 1, fp) == 0) {
+          LOG(ERROR) << "Dataset \"" << filename
+                     << "\": Bad data.";
+          fclose(fp);
+          return false;
+        }
+      }
+      ratings.push_back(rating);
+    }
+  }
+  // All data was read nicely.
+  return true;
+}
+
+void Dataset::print() const {
+  printf("# ASCII\n# %lu\n", criteria_size);
+  for(Rating r : ratings) {
+    printf("%u %u", r.user, r.item);
+    for(float f : r.c_rating) {
+      printf(" %f", f);
+    }
+    printf("\n");
+  }
+}
+
+// This function moves each element from one dataset to an other with
+// probability 1-f. This is useful to create a test set from the original
+// training data, for instance.
+// TODO(jpuigcerver) Pass some seed to control the generation of random numbers.
+void Dataset::partition(Dataset * original, Dataset * partition, float f) {
+  random_shuffle(original->ratings.begin(), original->ratings.end());
+  partition->ratings.clear();
+  uint64_t start_pos = static_cast<uint64_t>(f * original->ratings.size());
+  for (uint64_t i = start_pos; i < original->ratings.size(); ++i) {
+    partition->ratings.push_back(original->ratings[i]);
+  }
+  original->ratings.resize(start_pos);
+  if (original->ratings.size() == 0 || partition->ratings.size() == 0) {
+    LOG(WARNING) << "Some partition is empty.";
+  }
+}
+
+Rating::Rating() : user(0), item(0) { }
+
+Rating::Rating(uint32_t user, uint32_t item, uint64_t criteria_size) :
+    user(user), item(item), c_rating(criteria_size, 0.0f) { }
