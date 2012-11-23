@@ -195,7 +195,7 @@ float RMSE(const std::vector<Rating>& a, const std::vector<Rating>& b) {
   for (auto x = a.begin(), y = b.begin(); x != a.end(); ++x, ++y) {
     CHECK_EQ(x->c_rating.size(), y->c_rating.size());
     for (uint64_t c = 0; c < x->c_rating.size(); ++c) {
-      LOG(ERROR) << "x(" << c <<") = " << x->c_rating[c]
+      DLOG(INFO) << "x(" << c <<") = " << x->c_rating[c]
                  << ", y(" << c <<") = " << y->c_rating[c];
       float d = (x->c_rating[c] - y->c_rating[c]);
       s += d * d;

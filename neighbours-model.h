@@ -14,9 +14,11 @@ class NeighboursModel : public Model {
   float test(const Dataset& test_set) const;
   std::vector<Rating> test(const std::vector<user_item_t>& users_items) const;
 
+  NeighboursModel() : similarity(new CosineSimilarity()) {}
+  ~NeighboursModel() { delete similarity; }
  private:
   Dataset data_;
-  Similarity similarity;
+  const Similarity * similarity;
   std::map<uint64_t, vpc_ratings_t> user_ratings_; // Key: user
   std::map<uint64_t, vpc_ratings_t> item_ratings_; // Key: item
   common_ratings_t get_common_ratings(uint32_t a, uint32_t b) const;

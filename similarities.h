@@ -18,6 +18,7 @@ float v_norm2(const std::vector<T>& v) {
 
 class Similarity {
  public:
+  virtual ~Similarity() {}
   virtual float operator() (
       const std::vector<float>& a, const std::vector<float>& b,
       bool normalize = true) const {
@@ -28,6 +29,7 @@ class Similarity {
 
 class CosineSimilarity : public Similarity {
 public:
+  virtual ~CosineSimilarity() {}
   virtual float operator() (
       const std::vector<float>& a, const std::vector<float>& b,
       bool normalize = true) const {

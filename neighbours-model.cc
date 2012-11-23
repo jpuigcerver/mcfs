@@ -57,7 +57,6 @@ void NeighboursModel::train(
   for(auto& ratings: item_ratings_) {
     sort(ratings.second.begin(), ratings.second.end(), SortPRatingsByUser());
   }
-  similarity = CosineSimilarity();
 }
 
 float NeighboursModel::test(const Dataset& test_set) const {
@@ -98,7 +97,9 @@ std::vector<Rating> NeighboursModel::test(
       }
       // Create a n-dimensional vector from the common ratings
       nd_vectors_from_common_ratings(common_ratings, &v_u, &v_i);
-      float f = similarity(v_u, v_i);
+      float f = (*similarity)(v_u, v_i);
+      DLOG(INFO) << "Sim(user " << user << ", user "
+                 << rating->user << ") = " << f;
       sum_f += f;
       for (uint64_t c = 0; c < data_.criteria_size; ++c) {
         pred_rating.c_rating[c] += rating->c_rating[c] * f;
@@ -110,6 +111,7 @@ std::vector<Rating> NeighboursModel::test(
     } else {
       for (uint64_t c = 0; c < data_.criteria_size; ++c) {
         pred_rating.c_rating[c] /= sum_f;
+        pred_rating.c_rating[c] = round(pred_rating.c_rating[c]);
       }
     }
     result.push_back(pred_rating);
