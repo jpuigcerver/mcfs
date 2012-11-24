@@ -10,6 +10,13 @@ struct Rating {
   std::vector<float> c_rating;
   Rating();
   Rating(uint32_t user, uint32_t item, uint64_t criteria_size);
+  void print() {
+    printf("%u %u", user, item);
+    for(float r: c_rating) {
+      printf(" %f", r);
+    }
+    printf("\n");
+  }
 };
 
 struct Dataset {

@@ -70,6 +70,14 @@ bool Dataset::save_file(const char* filename, ds_file_format format) const {
   return true;
 }
 
+std::string get_line_profile(size_t criteria) {
+  std::string profile = "%lu %lu";
+  for(size_t c = 0; c < criteria; ++c) {
+    profile += " %f";
+  }
+  return profile + "\n";
+}
+
 bool Dataset::load_file(const char* filename) {
   // Open file
   FILE * fp = fopen(filename, "r");
@@ -122,17 +130,45 @@ bool Dataset::load_file(const char* filename) {
   ratings.clear();
   criteria_size = criteria;
   if (format == ASCII) {
-    LOG(ERROR) << "Dataset \"" << filename
-               << "\": ASCII format not implemented.";
-    fclose(fp);
-    return false;
+    do {
+      // Read line
+      fgets(buffer, FILE_BUFF_SIZE, fp);
+      // Check for errors or EOF
+      if (ferror(fp)) {
+        LOG(ERROR) << "Dataset \"" << filename << "\": Failed to read.";
+        fclose(fp);
+        return false;
+      } else if (feof(fp)) { break; }
+      // Parse line
+      char * end_user = NULL;
+      char * end_item = NULL;
+      rating.user = strtoul(buffer, &end_user, 10);
+      rating.item = strtoul(end_user, &end_item, 10);
+      if (end_user == buffer || end_item == end_user) {
+        LOG(ERROR) << "Dataset \"" << filename
+                   << "\": Bad data.";
+        fclose(fp);
+        return false;
+      }
+      char * end_p_rating = end_item;
+      char * end_rating = NULL;
+      for(uint64_t r = 0; r < criteria; ++r, end_p_rating = end_rating) {
+        rating.c_rating[r] = strtof(end_p_rating, &end_rating);
+        if (end_p_rating == end_rating) {
+          LOG(ERROR) << "Dataset \"" << filename
+                     << "\": Bad data.";
+          fclose(fp);
+          return false;
+        }
+      }
+      ratings.push_back(rating);
+    } while(!feof(fp));
   } else {
     while (!feof(fp)) {
       uint32_t user_le = 0, item_le = 0;
-      if (fread(&user_le, 4, 1, fp) == 0) {
-        break;
-      }
-      if (fread(&item_le, 4, 1, fp) == 0) {
+      uint32_t read_bytes = fread(&user_le, 4, 1, fp) + fread(&item_le, 4, 1, fp);
+      if (read_bytes == 0) { break; }
+      else if (read_bytes != 8) {
         LOG(ERROR) << "Dataset \"" << filename
                    << "\": Bad data.";
         fclose(fp);
@@ -141,7 +177,7 @@ bool Dataset::load_file(const char* filename) {
       rating.user = ntohl(user_le);
       rating.item = ntohl(item_le);
       for (uint64_t r = 0; r < criteria; ++r) {
-        if (fread(&rating.c_rating[r], 4, 1, fp) == 0) {
+        if (fread(&rating.c_rating[r], 4, 1, fp) != 4) {
           LOG(ERROR) << "Dataset \"" << filename
                      << "\": Bad data.";
           fclose(fp);
@@ -152,6 +188,7 @@ bool Dataset::load_file(const char* filename) {
     }
   }
   // All data was read nicely.
+  fclose(fp);
   return true;
 }
 
