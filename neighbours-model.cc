@@ -69,9 +69,41 @@ float NeighboursModel::test(const Dataset& test_set) const {
   return RMSE(test_set.ratings, pred_ratings);
 }
 
+class UserPair {
+ public:
+  UserPair(uint32_t u1, uint32_t u2) {
+    if (u1 < u2) {
+      this->u1 = u1;
+      this->u2 = u2;
+    } else {
+      this->u2 = u1;
+      this->u1 = u2;
+    }
+  }
+  bool operator < (const UserPair& o) const {
+    return (u1 < o.u1 || (u1 == o.u1 && u2 < o.u2));
+  }
+  bool operator == (const UserPair& o) const {
+    return (u1 == o.u1 && u2 == o.u2);
+  }
+  bool operator != (const UserPair& o) const {
+    return (u1 != o.u1 || u2 != o.u2);
+  }
+  uint32_t first() const {
+    return u1;
+  }
+  uint32_t second() const {
+    return u2;
+  }
+ private:
+  uint32_t u1;
+  uint32_t u2;
+};
+
 std::vector<Rating> NeighboursModel::test(
     const std::vector<user_item_t>& users_items) const {
   std::vector<Rating> result;
+  std::map<UserPair,float> users_similarity;
   // For each user_item to rate...
   for(const auto& user_item : users_items) {
     const uint32_t user = user_item.first;
@@ -90,14 +122,22 @@ std::vector<Rating> NeighboursModel::test(
     float sum_f = 0.0f;
     // For each rating of the item ...
     for (const auto& rating : item_ratings) {
-      // Get the common ratings between the test user and the rating owner
-      auto common_ratings = get_common_ratings(user, rating->user);
-      if (common_ratings.size() == 0) {
-        continue;
+      UserPair user_pair(user, rating->user);
+      float f = 0.0;
+      auto sim_it = users_similarity.find(user_pair);
+      if (sim_it == users_similarity.end()) {
+        // Get the common ratings between the test user and the rating owner
+        auto common_ratings = get_common_ratings(user, rating->user);
+        if (common_ratings.size() == 0) {
+          continue;
+        }
+        // Create a n-dimensional vector from the common ratings
+        nd_vectors_from_common_ratings(common_ratings, &v_u, &v_i);
+        f = (*similarity)(v_u, v_i);
+        users_similarity[user_pair] = f;
+      } else {
+        f = sim_it->second;
       }
-      // Create a n-dimensional vector from the common ratings
-      nd_vectors_from_common_ratings(common_ratings, &v_u, &v_i);
-      float f = (*similarity)(v_u, v_i);
       DLOG(INFO) << "Sim(user " << user << ", user "
                  << rating->user << ") = " << f;
       sum_f += f;

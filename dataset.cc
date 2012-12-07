@@ -166,20 +166,21 @@ bool Dataset::load_file(const char* filename) {
   } else {
     while (!feof(fp)) {
       uint32_t user_le = 0, item_le = 0;
-      uint32_t read_bytes = fread(&user_le, 4, 1, fp) + fread(&item_le, 4, 1, fp);
-      if (read_bytes == 0) { break; }
-      else if (read_bytes != 8) {
+      uint32_t read_items = fread(&user_le, 4, 1, fp) +
+          fread(&item_le, 4, 1, fp);
+      if (read_items == 0) { break; }
+      else if (read_items != 2) {
         LOG(ERROR) << "Dataset \"" << filename
-                   << "\": Bad data.";
+                   << "\": Bad data. Read ratings = " << ratings.size();
         fclose(fp);
         return false;
       }
       rating.user = ntohl(user_le);
       rating.item = ntohl(item_le);
       for (uint64_t r = 0; r < criteria; ++r) {
-        if (fread(&rating.c_rating[r], 4, 1, fp) != 4) {
+        if (fread(&rating.c_rating[r], 4, 1, fp) != 1) {
           LOG(ERROR) << "Dataset \"" << filename
-                     << "\": Bad data.";
+                     << "\": Bad data. Read ratings = " << ratings.size();
           fclose(fp);
           return false;
         }
