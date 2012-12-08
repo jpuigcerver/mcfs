@@ -5,12 +5,13 @@
 
 #include <dataset.h>
 #include <similarities.h>
+#include <fcntl.h>
 
 struct SortPRatingsByItem {
   bool operator() (const Rating * a, const Rating * b) const {
     CHECK_NOTNULL(a);
     CHECK_NOTNULL(b);
-    return a->item < b->item;
+    return a->item() < b->item();
   }
 };
 
@@ -18,37 +19,77 @@ struct SortPRatingsByUser {
   bool operator() (const Rating * a, const Rating * b) const {
     CHECK_NOTNULL(a);
     CHECK_NOTNULL(b);
-    return a->user < b->user;
+    return a->user() < b->user();
   }
 };
 
+bool NeighboursModel::load(const char * filename) {
+  int fd = open(filename, O_RDONLY);
+  if (config.ParseFromFileDescriptor(fd)) {
+    return false;
+  }
+  close(fd);
+
+  return true;
+}
+
+bool NeighboursModel::save(const char * filename, bool ascii) const {
+  int fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC,
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  if (fd < 0) {
+    LOG(ERROR) << "NeighboursModel \"" << filename << "\": Failed to open. Msg: "
+               << strerror(errno);
+    return false;
+  }
+  if (ascii) {
+    std::string sdata = config.DebugString();
+    if (write(fd, sdata.c_str(), sdata.length()) < 0) {
+      LOG(ERROR) << "NieghboursModel \"" << filename << "\": Failed to write. Msg: "
+                 << strerror(errno);
+      return false;
+    }
+    return false;
+  } else {
+    config.SerializeToFileDescriptor(fd);
+  }
+  close(fd);
+  return true;
+}
+
+void NeighboursModel::train(const Dataset& train_set) {
+}
+
 void NeighboursModel::train(
     const Dataset& train_set, const Dataset& valid_set) {
-  data_ = train_set;
-  for(auto& rating : data_.ratings) {
+  config.mutable_ratings()->Clear();
+  std::copy(train_set.ratings.rating().begin(),
+            train_set.ratings.rating().end(),
+            config.mutable_ratings()->mutable_rating()->begin());
+  //data_ = train_set;
+  /*for(auto& rating : data_.ratings.rating()) {
     // Add user rating
-    {
-      auto it = user_ratings_.find(rating.user);
+    {*/
+      /* auto it = user_ratings_.find(rating.user());
       if (it == user_ratings_.end()) {
         vpc_ratings_t ratings_vec;
         ratings_vec.push_back(&rating);
         user_ratings_[rating.user] = ratings_vec;
       } else {
         it->second.push_back(&rating);
-      }
-    }
+      }*/
+  //   }
     // Add item rating
-    {
-      auto it = item_ratings_.find(rating.item);
+  //    {
+      /*auto it = item_ratings_.find(rating.item);
       if (it == item_ratings_.end()) {
         vpc_ratings_t ratings_vec;
         ratings_vec.push_back(&rating);
         item_ratings_[rating.item] = ratings_vec;
       } else {
         it->second.push_back(&rating);
-      }
-    }
-  }
+        }*/
+  //    }
+  //}
   // Sort user ratings by item order
   for(auto& ratings: user_ratings_) {
     sort(ratings.second.begin(), ratings.second.end(), SortPRatingsByItem());
@@ -60,13 +101,14 @@ void NeighboursModel::train(
 }
 
 float NeighboursModel::test(const Dataset& test_set) const {
-  std::vector<user_item_t> user_items;
+  /*std::vector<user_item_t> user_items;
   user_items.reserve(test_set.ratings.size());
   for(const Rating& rating : test_set.ratings) {
     user_items.push_back(user_item_t(rating.user, rating.item));
   }
   std::vector<Rating> pred_ratings = test(user_items);
-  return RMSE(test_set.ratings, pred_ratings);
+  return RMSE(test_set.ratings, pred_ratings);*/
+  return 0.0;
 }
 
 class UserPair {
@@ -100,9 +142,9 @@ class UserPair {
   uint32_t u2;
 };
 
-std::vector<Rating> NeighboursModel::test(
+Ratings NeighboursModel::test(
     const std::vector<user_item_t>& users_items) const {
-  std::vector<Rating> result;
+  /*std::vector<Rating> result;
   std::map<UserPair,float> users_similarity;
   // For each user_item to rate...
   for(const auto& user_item : users_items) {
@@ -119,7 +161,8 @@ std::vector<Rating> NeighboursModel::test(
     const vpc_ratings_t& item_ratings = it->second;
     std::vector<float> v_u;
     std::vector<float> v_i;
-    float sum_f = 0.0f;
+    std::vector<std::pair<float,uint32_t> > similarities_by_user;
+    similarities_by_user.reserve(item_ratings.size());
     // For each rating of the item ...
     for (const auto& rating : item_ratings) {
       UserPair user_pair(user, rating->user);
@@ -138,12 +181,18 @@ std::vector<Rating> NeighboursModel::test(
       } else {
         f = sim_it->second;
       }
+      similarities_by_user.push_back(
+          std::pair<float,uint32_t>(rating->user, f));
       DLOG(INFO) << "Sim(user " << user << ", user "
                  << rating->user << ") = " << f;
-      sum_f += f;
+    }
+    std::sort(similarities_by_user.begin(), similarities_by_user.end(),
+              std::greater);
+    float sum_f = 0.0f;
+    for(uint64_t 
+    sum_f += f;
       for (uint64_t c = 0; c < data_.criteria_size; ++c) {
         pred_rating.c_rating[c] += rating->c_rating[c] * f;
-      }
     }
     if ( sum_f == 0.0 ) {
       LOG(WARNING) << "User " << user << " have not any common rating "
@@ -156,6 +205,8 @@ std::vector<Rating> NeighboursModel::test(
     }
     result.push_back(pred_rating);
   }
+  return result;*/
+  Ratings result;
   return result;
 }
 
@@ -164,6 +215,7 @@ void NeighboursModel::nd_vectors_from_common_ratings(
     std::vector<float> * va, std::vector<float> * vb) const {
   CHECK_NOTNULL(va);
   CHECK_NOTNULL(vb);
+  /*
   va->clear(); vb->clear();
   va->reserve(common_ratings.size());
   vb->reserve(common_ratings.size());
@@ -173,12 +225,13 @@ void NeighboursModel::nd_vectors_from_common_ratings(
       vb->push_back(rating_pair.second->c_rating[c]);
     }
   }
+  */
 }
 
 NeighboursModel::common_ratings_t
 NeighboursModel::get_common_ratings(uint32_t a, uint32_t b) const {
   common_ratings_t result;
-  auto it_a = user_ratings_.find(a);
+  /*  auto it_a = user_ratings_.find(a);
   auto it_b = user_ratings_.find(b);
   // Check whether users have some rating.
   if (it_a == user_ratings_.end()) {
@@ -206,6 +259,6 @@ NeighboursModel::get_common_ratings(uint32_t a, uint32_t b) const {
   if (result.size() == 0) {
     DLOG(WARNING) << "No common ratings between users "
                   << a << " and " << b << ".";
-  }
+                  }*/
   return result;
 }

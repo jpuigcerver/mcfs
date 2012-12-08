@@ -16,9 +16,9 @@ int main(int argc, char ** argv) {
 
   Dataset train_partition;
   Dataset valid_partition;
-  CHECK(train_partition.load_file(FLAGS_train.c_str()));
+  CHECK(train_partition.load(FLAGS_train.c_str()));
   if (FLAGS_valid != "") {
-    CHECK(valid_partition.load_file(FLAGS_valid.c_str()));
+    CHECK(valid_partition.load(FLAGS_valid.c_str()));
   }
 
   NeighboursModel nm;

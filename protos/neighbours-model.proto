@@ -1,0 +1,16 @@
+package mcfs.models;
+
+import "model.proto";
+import "ratings.proto";
+
+message NeighboursModelConfig {
+  extend ModelConfig {
+     optional ModelConfig config = 100;
+  }
+  enum Similarity {
+    COSINE = 0;
+  }
+  optional uint64 K = 1 [default = 0];
+  optional Ratings ratings = 2;
+  optional Similarity similarity = 3 [default = COSINE];
+}

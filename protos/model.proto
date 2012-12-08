@@ -1,0 +1,6 @@
+package mcfs.models;
+
+message ModelConfig {
+  optional string name = 1;
+  extensions 100 to max;
+}

@@ -35,11 +35,13 @@
 
 #include <random>
 
+#include <protos/ratings.pb.h>
+
 DEFINE_uint64(users, 0, "Number of users in the dataset");
 DEFINE_uint64(movies, 0, "Number of movies in the dataset");
 DEFINE_double(fratings, 0.0, "Ratio of ratings to generate");
 DEFINE_int64(seed, 0, "Pseudo-random number generator seed");
-DEFINE_bool(ascii, true, "Output the ratings in ASCII format");
+DEFINE_bool(ascii, false, "Output the ratings in ASCII format");
 
 // Averages provided by [1].
 float AVERAGES[5] = {9.6, 9.9, 9.5, 10.5, 9.5};
@@ -68,12 +70,8 @@ int main(int argc, char ** argv) {
   std::default_random_engine rndg(FLAGS_seed);
   std::uniform_real_distribution<float> unif_dist(0.0, 1.0);
   std::normal_distribution<float> norm_dist(0.0, 1.0);
-  // Generate data
-  if (FLAGS_ascii) {
-    printf("# ASCII\n# 5\n");
-  } else {
-    printf("# BINARY\n# 5\n");
-  }
+  Ratings ratings_pb;
+
   for (uint32_t u = 0; u < FLAGS_users; ++u) {
     for (uint32_t m = 0; m < FLAGS_movies; ++m) {
       if ( unif_dist(rndg) < FLAGS_fratings ) {
@@ -86,25 +84,22 @@ int main(int argc, char ** argv) {
         TNT::Array2D<float> cratings = TNT::matmult(ratings, CORR_L_TNT);
         // Ratings distributed with the corret mean and dev, and restricted
         // to range 1..13.
-        float final_ratings[5];
+        Rating * final_rating = ratings_pb.add_rating();
+        final_rating->set_user(u);
+        final_rating->set_item(m);
         for (int r = 0; r < 5; ++r) {
           cratings[0][r] = cratings[0][r] * STDDEVS[r] + AVERAGES[r];
-          final_ratings[r] = round(
-              std::max(1.0f, std::min(13.0f, cratings[0][r])));
-        }
-        if (FLAGS_ascii) {
-          printf("%u %u %f %f %f %f %f\n", u, m, final_ratings[0],
-                 final_ratings[1], final_ratings[2], final_ratings[3],
-                 final_ratings[4]);
-        } else {
-          uint32_t user_le = htonl(u);
-          uint32_t item_le = htonl(m);
-          fwrite(&user_le, 4, 1, stdout);
-          fwrite(&item_le, 4, 1, stdout);
-          fwrite(&final_ratings, 4, 5, stdout);
+          final_rating->add_rating(
+              round(std::max(1.0f, std::min(13.0f, cratings[0][r]))));
         }
       }
     }
+  }
+  ratings_pb.set_criteria_size(5);
+  if (FLAGS_ascii) {
+    ratings_pb.PrintDebugString();
+  } else {
+    ratings_pb.SerializeToFileDescriptor(1);
   }
   return 0;
 }

@@ -1,0 +1,13 @@
+package mcfs.models;
+
+import "model.proto";
+
+message PMFModelConfig {
+  extend ModelConfig {
+    optional ModelConfig config = 200;
+  }
+  required uint32 factors = 1;
+  repeated float y = 2;
+  repeated float v = 3;
+  repeated float w = 4;
+}

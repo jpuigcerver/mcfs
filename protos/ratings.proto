@@ -1,0 +1,10 @@
+message Rating {
+  required uint32 user = 1;
+  required uint32 item = 2;
+  repeated float rating = 3;
+}
+
+message Ratings {
+  repeated Rating rating = 1;
+  optional uint32 criteria_size = 2;
+}

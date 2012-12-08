@@ -5,19 +5,30 @@
 #include <model.h>
 #include <map>
 
+#include <protos/ratings.pb.h>
+#include <protos/neighbours-model.pb.h>
+
+using namespace mcfs::models;
+
 class NeighboursModel : public Model {
  public:
   typedef std::pair<const Rating*, const Rating*> ppc_rating_t;
   typedef std::vector<ppc_rating_t> common_ratings_t;
 
+  bool load(const char * filename);
+  bool save(const char * filename, bool ascii = false) const;
+  void train(const Dataset& train_set);
   void train(const Dataset& train_set, const Dataset& valid_set);
   float test(const Dataset& test_set) const;
-  std::vector<Rating> test(const std::vector<user_item_t>& users_items) const;
+  Ratings test(const std::vector<user_item_t>& users_items) const;
 
-  NeighboursModel() : similarity(new CosineSimilarity()) {}
+  NeighboursModel() : similarity(new CosineSimilarity()) {
+    data_ = config.mutable_ratings();
+  }
   ~NeighboursModel() { delete similarity; }
  private:
-  Dataset data_;
+  NeighboursModelConfig config;
+  Ratings * data_;
   const Similarity * similarity;
   std::map<uint64_t, vpc_ratings_t> user_ratings_; // Key: user
   std::map<uint64_t, vpc_ratings_t> item_ratings_; // Key: item
