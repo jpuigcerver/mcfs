@@ -6,24 +6,30 @@
 
 #include <algorithm>
 #include <string>
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+
+using google::protobuf::TextFormat;
+using google::protobuf::io::FileInputStream;
+using google::protobuf::io::FileOutputStream;
 
 bool Dataset::save(const char* filename, bool ascii) const {
   int fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC,
                 S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (fd < 0) {
-    LOG(ERROR) << "Dataset \"" << filename << "\": Failed to open. Msg: "
+    LOG(ERROR) << "Dataset \"" << filename << "\": Failed to open. Error: "
                << strerror(errno);
     return false;
   }
+  FileOutputStream fs(fd);
   if (ascii) {
-    std::string sdata = ratings.DebugString();
-    if (write(fd, sdata.c_str(), sdata.length()) < 0) {
-      LOG(ERROR) << "Dataset \"" << filename << "\": Failed to write. Msg: "
-                 << strerror(errno);
-      return false;
-    }
-  } else {
-    ratings.SerializeToFileDescriptor(fd);
+    LOG(ERROR) << "Dataset \"" << filename << "\": ASCII format not implemented.";
+    return false;
+  }
+  if ((ascii && !TextFormat::Print(ratings, &fs)) ||
+      (!ascii && !ratings.SerializeToFileDescriptor(fd))) {
+    LOG(ERROR) << "Dataset \"" << filename << "\": Failed to write.";
+    return false;
   }
   close(fd);
   return true;
@@ -31,7 +37,14 @@ bool Dataset::save(const char* filename, bool ascii) const {
 
 bool Dataset::load(const char* filename) {
   int fd = open(filename, O_RDONLY);
-  if (ratings.ParseFromFileDescriptor(fd)) {
+  if (fd < 0) {
+    LOG(ERROR) << "Dataset \"" << filename << "\": Failed to open. Error: "
+               << strerror(errno);
+    return false;
+  }
+  FileInputStream fs(fd);
+  if (!ratings.ParseFromFileDescriptor(fd) && !TextFormat::Parse(&fs, &ratings)) {
+    LOG(ERROR) << "Dataset \"" << filename << "\": Failed to parse.";
     return false;
   }
   close(fd);
@@ -67,6 +80,24 @@ void Dataset::partition(Dataset * original, Dataset * partition, float f) {
   if (original->ratings.rating_size() == 0 ||
       partition->ratings.rating_size() == 0) {
     LOG(WARNING) << "Some partition is empty.";
+  }
+}
+
+void CopyRatings(const Ratings& src, Ratings * dst) {
+  CHECK_NOTNULL(dst);
+  dst->clear_rating();
+  dst->clear_criteria_size();
+  if (src.has_criteria_size()) {
+    dst->set_criteria_size(src.criteria_size());
+  }
+  for (int i = 0; i < src.rating_size(); ++i) {
+    const Rating& orig_rating = src.rating(i);
+    Rating * new_rating = dst->add_rating();
+    new_rating->set_user(orig_rating.user());
+    new_rating->set_item(orig_rating.item());
+    for (int j = 0; j < orig_rating.rating_size(); ++j) {
+      new_rating->add_rating(orig_rating.rating(j));
+    }
   }
 }
 

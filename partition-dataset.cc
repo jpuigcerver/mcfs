@@ -45,13 +45,7 @@ int main(int argc, char ** argv) {
   Dataset dataset1, dataset2;
   dataset1.load(FLAGS_input.c_str());
   Dataset::partition(&dataset1, &dataset2, FLAGS_f);
-  if (FLAGS_ascii) {
-    dataset1.save(FLAGS_part1.c_str(), true);
-    dataset2.save(FLAGS_part2.c_str(), true);
-  } else {
-    dataset1.save(FLAGS_part1.c_str(), false);
-    dataset2.save(FLAGS_part2.c_str(), false);
-  }
-
+  dataset1.save(FLAGS_part1.c_str(), FLAGS_ascii);
+  dataset2.save(FLAGS_part2.c_str(), FLAGS_ascii);
   return 0;
 }

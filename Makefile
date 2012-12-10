@@ -1,5 +1,5 @@
-CXX_FLAGS=-std=c++11 -Wall -pedantic -I. -O3
-LD_FLAGS=-lgflags -lglog -lprotobuf
+CXX_FLAGS=-std=c++11 -Wall -pedantic -I. -g -pg
+LD_FLAGS=-lgflags -lglog -lprotobuf -g -pg
 BINARIES=generate-data-movies mcfs-train partition-dataset
 
 all: $(BINARIES)

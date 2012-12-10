@@ -31,11 +31,14 @@
 #include <glog/logging.h>
 #include <stdio.h>
 #include <tnt/tnt.h>
-#include <arpa/inet.h>
-
 #include <random>
 
 #include <protos/ratings.pb.h>
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+
+using google::protobuf::TextFormat;
+using google::protobuf::io::FileOutputStream;
 
 DEFINE_uint64(users, 0, "Number of users in the dataset");
 DEFINE_uint64(movies, 0, "Number of movies in the dataset");
@@ -97,7 +100,9 @@ int main(int argc, char ** argv) {
   }
   ratings_pb.set_criteria_size(5);
   if (FLAGS_ascii) {
-    ratings_pb.PrintDebugString();
+    LOG(FATAL) << "ASCII format not implemented.";
+    FileOutputStream fs(1);
+    TextFormat::Print(ratings_pb, &fs);
   } else {
     ratings_pb.SerializeToFileDescriptor(1);
   }

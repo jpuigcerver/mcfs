@@ -1,10 +1,10 @@
 message Rating {
-  required uint32 user = 1;
-  required uint32 item = 2;
-  repeated float rating = 3;
+  required uint32 user = 1;    // User ID
+  required uint32 item = 2;    // Item ID
+  repeated float rating = 3;   // Criteria rating
 }
 
 message Ratings {
-  repeated Rating rating = 1;
-  optional uint32 criteria_size = 2;
+  repeated Rating rating = 1;         // Ratings
+  optional uint32 criteria_size = 2;  // Number of criteria ratings per rating
 }
