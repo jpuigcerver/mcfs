@@ -13,11 +13,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-// This program is used to train a model to predict the ratings
-// of a training dataset. The user must specify the type of the model
-// to train (Neighbours or PMF models are available), a training dataset,
-// and optionally, the filepath where the trained model will be saved,
-// a validation dataset and the hyperparameters of the model.
+// This program is used to test a trained model using a test dataset.
+// The user must specify the type of the model to use (Neighbours or
+// PMF models are available), a test dataset and the configuration file
+// of the model.
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -29,10 +28,8 @@
 #include <protos/neighbours-model.pb.h>
 
 DEFINE_string(mtype, "neighbours", "Model type");
-DEFINE_string(mconf, "", "Model configuration");
-DEFINE_string(mfile, "", "Path to the output model file");
-DEFINE_string(train, "", "Train data partition");
-DEFINE_string(valid, "", "Validation data partition");
+DEFINE_string(mfile, "", "Model configuration file");
+DEFINE_string(test, "", "Train data partition");
 DEFINE_uint64(seed, 0, "Pseudo-random number generator seed");
 
 std::default_random_engine PRNG;
@@ -42,9 +39,11 @@ int main(int argc, char ** argv) {
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Check flags
-  CHECK_NE(FLAGS_train, "") << "A train partition must be specified.";
+  CHECK_NE(FLAGS_mtype, "") << "A model type must be specified.";
+  CHECK_NE(FLAGS_mfile, "") << "A model configuration file must be specified.";
+  CHECK_NE(FLAGS_test, "") << "A train partition must be specified.";
   PRNG.seed(FLAGS_seed);
-  // Create the model to train
+  // Create the model to use
   Model * model;
   if (FLAGS_mtype == "neighbours") {
     model = CHECK_NOTNULL(new NeighboursModel());
@@ -53,24 +52,11 @@ int main(int argc, char ** argv) {
   } else {
     LOG(FATAL) << "Unknown model type: \"" << FLAGS_mtype << "\"";
   }
-  // Configure the hyperparameters of the model
-  if (FLAGS_mconf != "") {
-    CHECK(model->load_string(FLAGS_mconf));
-  }
-  // Train the model
-  Dataset train_partition;
-  CHECK(train_partition.load(FLAGS_train));
-  printf("Train RMSE: %f\n", model->train(train_partition));
-  // Test the model through the validation data
-  if (FLAGS_valid != "") {
-    Dataset valid_partition;
-    CHECK(valid_partition.load(FLAGS_valid));
-    printf("Valid RMSE: %f\n", model->test(valid_partition));
-  }
-  // Save the trained model to a file
-  if (FLAGS_mfile != "") {
-    CHECK(model->save(FLAGS_mfile));
-  }
+  CHECK(model->load(FLAGS_mfile));
+  // Test the model
+  Dataset test_partition;
+  CHECK(test_partition.load(FLAGS_test));
+  printf("Test RMSE: %f\n", model->test(test_partition));
   delete model;
   return 0;
 }

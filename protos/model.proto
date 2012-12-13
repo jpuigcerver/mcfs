@@ -1,4 +1,4 @@
-package mcfs.models;
+package mcfs.protos;
 
 message ModelConfig {
   optional string name = 1;

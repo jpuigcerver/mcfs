@@ -3,21 +3,18 @@
 
 #include <dataset.h>
 #include <vector>
-#include <utility>
-#include <protos/ratings.pb.h>
+#include <string>
 
 class Model {
  public:
-  typedef std::map<uint32_t, const Rating*> map_ratings_t;
-  typedef std::vector<const Rating *> vpc_ratings_t;
-
   virtual ~Model() {};
-  virtual bool load(const char * filename) = 0;
-  virtual bool save(const char * filename, bool ascii = false) const = 0;
   virtual float train(const Dataset& train_set) = 0;
-  virtual float train(const Dataset& train_set, const Dataset& valid_set) = 0;
   virtual float test(const Dataset& test_set) const = 0;
-  virtual Ratings test(const Ratings& test_set) const = 0;
+  virtual void test(std::vector<Dataset::Rating>* users_items) const = 0;
+  virtual bool save(const std::string& filename) const = 0;
+  virtual bool load(const std::string& filename) = 0;
+  virtual bool load_string(const std::string& str) = 0;
+  virtual bool save_string(std::string* str) const = 0;
 };
 
 #endif  // MODEL_H_

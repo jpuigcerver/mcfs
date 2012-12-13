@@ -23,11 +23,16 @@
 #include <stdio.h>
 #include <dataset.h>
 
+#include <random>
+
+std::default_random_engine PRNG;
+
 DEFINE_string(input, "", "Input dataset filename");
 DEFINE_string(part1, "", "Partition 1 filename");
 DEFINE_string(part2, "", "Partition 2 filename");
 DEFINE_double(f, 0.8, "Fraction of input data used for part1 (Range: 0..1)");
 DEFINE_bool(ascii, false, "Output partitions in ASCII format");
+DEFINE_uint64(seed, 0, "Pseudo-random number generator seed");
 
 int main(int argc, char ** argv) {
   // Google tools initialization
@@ -41,11 +46,12 @@ int main(int argc, char ** argv) {
       "An output filename for partition 2 must be specified.";
   CHECK_GT(FLAGS_f, 0.0) << "Fraction must be greater than 0.0.";
   CHECK_LT(FLAGS_f, 1.0) << "Fraction must be lower than 1.0.";
+  PRNG.seed(FLAGS_seed);
 
   Dataset dataset1, dataset2;
-  dataset1.load(FLAGS_input.c_str());
+  dataset1.load(FLAGS_input);
   Dataset::partition(&dataset1, &dataset2, FLAGS_f);
-  dataset1.save(FLAGS_part1.c_str(), FLAGS_ascii);
-  dataset2.save(FLAGS_part2.c_str(), FLAGS_ascii);
+  dataset1.save(FLAGS_part1, FLAGS_ascii);
+  dataset2.save(FLAGS_part2, FLAGS_ascii);
   return 0;
 }

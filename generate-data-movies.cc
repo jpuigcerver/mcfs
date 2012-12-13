@@ -29,21 +29,24 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <stdio.h>
 #include <tnt/tnt.h>
 #include <random>
 
 #include <protos/ratings.pb.h>
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
 
 using google::protobuf::TextFormat;
 using google::protobuf::io::FileOutputStream;
+using mcfs::protos::Ratings;
+using mcfs::protos::Rating;
+using mcfs::protos::Ratings_Precision_INT;
 
 DEFINE_uint64(users, 0, "Number of users in the dataset");
 DEFINE_uint64(movies, 0, "Number of movies in the dataset");
 DEFINE_double(fratings, 0.0, "Ratio of ratings to generate");
-DEFINE_int64(seed, 0, "Pseudo-random number generator seed");
+DEFINE_uint64(seed, 0, "Pseudo-random number generator seed");
 DEFINE_bool(ascii, false, "Output the ratings in ASCII format");
 
 // Averages provided by [1].
@@ -92,15 +95,19 @@ int main(int argc, char ** argv) {
         final_rating->set_item(m);
         for (int r = 0; r < 5; ++r) {
           cratings[0][r] = cratings[0][r] * STDDEVS[r] + AVERAGES[r];
-          final_rating->add_rating(
+          final_rating->add_score(
               round(std::max(1.0f, std::min(13.0f, cratings[0][r]))));
         }
       }
     }
   }
   ratings_pb.set_criteria_size(5);
+  for (int i = 0; i < 5; ++i) {
+    ratings_pb.add_minv(1.0f);
+    ratings_pb.add_maxv(13.0f);
+    ratings_pb.add_precision(Ratings_Precision_INT);
+  }
   if (FLAGS_ascii) {
-    LOG(FATAL) << "ASCII format not implemented.";
     FileOutputStream fs(1);
     TextFormat::Print(ratings_pb, &fs);
   } else {

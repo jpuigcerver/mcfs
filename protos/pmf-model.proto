@@ -1,4 +1,4 @@
-package mcfs.models;
+package mcfs.protos;
 
 import "model.proto";
 

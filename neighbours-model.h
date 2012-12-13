@@ -3,38 +3,35 @@
 
 #include <similarities.h>
 #include <model.h>
-#include <map>
-
-#include <protos/ratings.pb.h>
+#include <dataset.h>
 #include <protos/neighbours-model.pb.h>
+#include <string>
 
-using namespace mcfs::models;
-using google::protobuf::RepeatedPtrField;
+using mcfs::protos::NeighboursModelConfig;
+using mcfs::protos::NeighboursModelConfig_Similarity;
+using mcfs::protos::NeighboursModelConfig_Similarity_COSINE;
 
 class NeighboursModel : public Model {
  public:
-  typedef std::pair<const Rating*, const Rating*> ppc_rating_t;
-  typedef std::vector<ppc_rating_t> common_ratings_t;
-
-  bool load(const char * filename);
-  bool save(const char * filename, bool ascii = false) const;
+  typedef Dataset::Rating Rating;
   float train(const Dataset& train_set);
-  float train(const Dataset& train_set, const Dataset& valid_set);
   float test(const Dataset& test_set) const;
-  Ratings test(const Ratings& test_set) const;
+  void test(std::vector<Rating>* test_set) const;
+  bool save(const std::string& filename) const;
+  bool load(const std::string& filename);
+  bool save(NeighboursModelConfig * config) const;
+  bool load(const NeighboursModelConfig& config);
+  bool load_string(const std::string& str);
+  bool save_string(std::string* str) const;
 
-  NeighboursModel() : similarity(new CosineSimilarity()) { }
-  ~NeighboursModel() { delete similarity; }
+NeighboursModel() : K_(0),
+      similarity_code_(NeighboursModelConfig_Similarity_COSINE),
+      similarity_(&StaticCosineSimilarity) {}
  private:
-  NeighboursModelConfig config;
-  Ratings * data_;
-  const Similarity * similarity;
-  std::map<uint32_t, vpc_ratings_t> user_ratings_; // Key: user
-  std::map<uint32_t, vpc_ratings_t> item_ratings_; // Key: item
-  common_ratings_t get_common_ratings(uint32_t a, uint32_t b) const;
-  void nd_vectors_from_common_ratings(
-      const common_ratings_t& common_ratings,
-      std::vector<float> * va, std::vector<float> * vb) const;
+  Dataset data_;
+  uint64_t K_;
+  NeighboursModelConfig_Similarity similarity_code_;
+  const Similarity * similarity_;
 };
 
 #endif  // NEIGHBOURS_MODEL_H_

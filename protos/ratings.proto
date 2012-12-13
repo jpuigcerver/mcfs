@@ -1,10 +1,24 @@
+package mcfs.protos;
+
 message Rating {
   required uint32 user = 1;    // User ID
   required uint32 item = 2;    // Item ID
-  repeated float rating = 3;   // Criteria rating
+  repeated float score = 3;   // Criteria score
 }
 
 message Ratings {
-  repeated Rating rating = 1;         // Ratings
-  optional uint32 criteria_size = 2;  // Number of criteria ratings per rating
+  // Ratings
+  repeated Rating rating = 1;
+  // Number of criteria scores per rating
+  optional uint64 criteria_size = 2;
+  // Min. value in each score
+  repeated float minv = 3;
+  // Max. value in each score
+  repeated float maxv = 4;
+  // Precision of each score. Default: FLOAT
+  enum Precision {
+    FLOAT = 0;
+    INT = 1;
+  }
+  repeated Precision precision = 5;
 }
