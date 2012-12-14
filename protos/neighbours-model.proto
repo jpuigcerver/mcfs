@@ -11,9 +11,13 @@ message NeighboursModelConfig {
     COSINE = 0;
     COSINE_SQRT = 1;
     COSINE_POW2 = 2;
-    INV_NORM_P1 = 3;
-    INV_NORM_P2 = 4;
-    INV_NORM_PI = 5;
+    COSINE_EXPO = 3;
+    INV_NORM_P1 = 4;
+    INV_NORM_P2 = 5;
+    INV_NORM_PI = 6;
+    I_N_P1_EXPO = 7;
+    I_N_P2_EXPO = 8;
+    I_N_PI_EXPO = 9;
   }
   optional uint64 k = 1 [default = 0];
   optional Ratings ratings = 2;

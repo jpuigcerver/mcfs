@@ -21,9 +21,13 @@ using mcfs::protos::NeighboursModelConfig;
 using mcfs::protos::NeighboursModelConfig_Similarity_COSINE;
 using mcfs::protos::NeighboursModelConfig_Similarity_COSINE_SQRT;
 using mcfs::protos::NeighboursModelConfig_Similarity_COSINE_POW2;
+using mcfs::protos::NeighboursModelConfig_Similarity_COSINE_EXPO;
 using mcfs::protos::NeighboursModelConfig_Similarity_INV_NORM_P1;
 using mcfs::protos::NeighboursModelConfig_Similarity_INV_NORM_P2;
 using mcfs::protos::NeighboursModelConfig_Similarity_INV_NORM_PI;
+using mcfs::protos::NeighboursModelConfig_Similarity_I_N_P1_EXPO;
+using mcfs::protos::NeighboursModelConfig_Similarity_I_N_P2_EXPO;
+using mcfs::protos::NeighboursModelConfig_Similarity_I_N_PI_EXPO;
 using mcfs::protos::Ratings_Precision_INT;
 
 
@@ -77,6 +81,9 @@ bool NeighboursModel::load(const NeighboursModelConfig& config) {
     case NeighboursModelConfig_Similarity_COSINE_POW2:
       similarity_ = &StaticCosinePow2Similarity;
       break;
+    case NeighboursModelConfig_Similarity_COSINE_EXPO:
+      similarity_ = &StaticCosineExpSimilarity;
+      break;
     case NeighboursModelConfig_Similarity_INV_NORM_P1:
       similarity_ = &StaticNormSimilarityP1;
       break;
@@ -85,6 +92,15 @@ bool NeighboursModel::load(const NeighboursModelConfig& config) {
       break;
     case NeighboursModelConfig_Similarity_INV_NORM_PI:
       similarity_ = &StaticNormSimilarityPI;
+      break;
+    case NeighboursModelConfig_Similarity_I_N_P1_EXPO:
+      similarity_ = &StaticNormExpSimilarityP1;
+      break;
+    case NeighboursModelConfig_Similarity_I_N_P2_EXPO:
+      similarity_ = &StaticNormExpSimilarityP2;
+      break;
+    case NeighboursModelConfig_Similarity_I_N_PI_EXPO:
+      similarity_ = &StaticNormExpSimilarityPI;
       break;
     default:
       LOG(ERROR) << "Unknown similarity code " << similarity_code_;
@@ -228,7 +244,8 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
               std::greater<std::pair<float, const Rating*> >());
     // Determine the maximum number of neighbours to use in the prediction
     const uint64_t max_neighbours =
-        K_ == 0 ? weighted_ratings.size() : std::min(K_, weighted_ratings.size());
+        K_ == 0 ? weighted_ratings.size() : std::min<uint64_t>(
+            K_, weighted_ratings.size());
     if (weighted_ratings[0].first == INFINITY) {
       // Compute the predicted rating where there are users with
       // similarity = INFINITY
