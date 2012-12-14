@@ -125,11 +125,11 @@ bool NeighboursModel::save(const std::string& filename) const {
 
 float NeighboursModel::train(const Dataset& train_set) {
   data_ = train_set;
-  // The error on the training data is always 0
+  // The error on the training data is always 0.0 for this model
   return 0.0f;
 }
 
-float NeighboursModel::test(const Dataset & test_set) const {
+float NeighboursModel::test(const Dataset& test_set) const {
   Dataset pred_ratings;
   pred_ratings.copy_empty(test_set);
   CLOCK(test(&pred_ratings.mutable_ratings()));
