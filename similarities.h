@@ -71,6 +71,17 @@ public:
   }
 };
 
+class CosineExpSimilarity : public CosineSimilarity {
+public:
+  virtual ~CosineExpSimilarity() {}
+  virtual float operator() (
+      const std::vector<float>& a, const std::vector<float>& b,
+      bool normalize = true) const {
+    const float s = CosineSimilarity::operator()(a, b, normalize);
+    return exp(s);
+  }
+};
+
 class NormSimilarity : public Similarity {
 private:
   float p;
@@ -154,11 +165,39 @@ public:
   }
 };
 
+class NormExpSimilarity : public NormSimilarity {
+public:
+  NormExpSimilarity(float p) : NormSimilarity(p) {}
+  virtual ~NormExpSimilarity() {}
+  virtual float operator() (
+      const std::vector<float>& a, const std::vector<float>& b,
+      bool normalize = true) const {
+    const float f = NormSimilarity::operator()(a, b, normalize);
+    return exp(f);
+  }
+};
+
+class InfNormExpSimilarity : public InfNormSimilarity {
+public:
+  virtual ~InfNormExpSimilarity() {}
+  virtual float operator() (
+      const std::vector<float>& a, const std::vector<float>& b,
+      bool normalize = true) const {
+    const float f = InfNormSimilarity::operator()(a, b, normalize);
+    return exp(f);
+  }
+
+};
+
 static CosineSimilarity StaticCosineSimilarity;
 static CosineSqrtSimilarity StaticCosineSqrtSimilarity;
 static CosinePow2Similarity StaticCosinePow2Similarity;
+static CosineExpSimilarity StaticCosineExpSimilarity;
 static NormSimilarity StaticNormSimilarityP1(1);
 static NormSimilarity StaticNormSimilarityP2(2);
 static InfNormSimilarity StaticNormSimilarityPI;
+static NormExpSimilarity StaticNormExpSimilarityP1(1);
+static NormExpSimilarity StaticNormExpSimilarityP2(2);
+static InfNormExpSimilarity StaticNormExpSimilarityPI;
 
 #endif  // SIMILARITIES_H
