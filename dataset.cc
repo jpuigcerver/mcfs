@@ -30,10 +30,10 @@ bool Dataset::save(const std::string& filename, bool ascii) const {
     return false;
   }
   FileOutputStream fs(fd);
-  /*if (ascii) {
+  if (ascii) {
     LOG(ERROR) << "Dataset \"" << filename << "\": ASCII format not implemented.";
     return false;
-  }*/
+  }
   if ((ascii && !TextFormat::Print(proto_ratings, &fs)) ||
       (!ascii && !proto_ratings.SerializeToFileDescriptor(fd))) {
     LOG(ERROR) << "Dataset \"" << filename << "\": Failed to write.";
@@ -69,64 +69,65 @@ bool Dataset::load(const std::string& filename) {
 bool Dataset::load(const mcfs::protos::Ratings& proto_ratings) {
   // Fill internal data
   clear();
-  criteria_size = proto_ratings.criteria_size();
+  criteria_size_ = proto_ratings.criteria_size();
   if (proto_ratings.rating_size() == 0) {
     return true;
   }
   // If the criteria size is unknown, set to the first.
-  if (criteria_size == 0) {
-    criteria_size = proto_ratings.rating(0).score_size();
+  if (criteria_size_ == 0) {
+    criteria_size_ = proto_ratings.rating(0).score_size();
   }
-  ratings.resize(proto_ratings.rating_size());
+  ratings_.resize(proto_ratings.rating_size());
   // Copy from protobuf to self-memory
-  for (uint64_t r = 0; r < ratings.size(); ++r) {
+  for (uint32_t r = 0; r < ratings_.size(); ++r) {
     // Set user & item ID
-    ratings[r].user = proto_ratings.rating(r).user();
-    ratings[r].item = proto_ratings.rating(r).item();
+    ratings_[r].user = proto_ratings.rating(r).user();
+    ratings_[r].item = proto_ratings.rating(r).item();
     // Check wether the number of scores is the expected
-    if (static_cast<uint64_t>(
-            proto_ratings.rating(r).score_size()) != criteria_size) {
+    if (static_cast<uint32_t>(
+            proto_ratings.rating(r).score_size()) != criteria_size_) {
       LOG(ERROR) << "Dataset: Inconsistent criteria size. "
                  << "Size found = " << proto_ratings.rating(r).score_size()
-                 << ". Size expected = " << criteria_size;
+                 << ". Size expected = " << criteria_size_;
       return false;
     }
     // Set the rating scores
     const float * p_scores = proto_ratings.rating(r).score().data();
-    ratings[r].scores.resize(criteria_size);
-    std::copy(p_scores, p_scores + criteria_size, ratings[r].scores.begin());
+    ratings_[r].scores.resize(criteria_size_);
+    std::copy(p_scores, p_scores + criteria_size_, ratings_[r].scores.begin());
   }
   // Set min value for each criteria
-  if (static_cast<uint64_t>(proto_ratings.minv_size()) == criteria_size) {
-    minv.resize(criteria_size);
+  if (static_cast<uint32_t>(proto_ratings.minv_size()) == criteria_size_) {
+    minv_.resize(criteria_size_);
     std::copy(proto_ratings.minv().data(),
-              proto_ratings.minv().data() + criteria_size,
-              minv.begin());
+              proto_ratings.minv().data() + criteria_size_,
+              minv_.begin());
   } else {
-    set_minv();
+    init_minv();
   }
   // Set max value for each criteria
-  if (static_cast<uint64_t>(proto_ratings.maxv_size()) == criteria_size) {
-    maxv.resize(criteria_size);
+  if (static_cast<uint32_t>(proto_ratings.maxv_size()) == criteria_size_) {
+    maxv_.resize(criteria_size_);
     std::copy(proto_ratings.maxv().data(),
-              proto_ratings.maxv().data() + criteria_size,
-              maxv.begin());
+              proto_ratings.maxv().data() + criteria_size_,
+              maxv_.begin());
   } else {
-    set_maxv();
+    init_maxv();
   }
   // Set the precision of each criteria
-  if (static_cast<uint64_t>(proto_ratings.precision_size()) == criteria_size) {
-    precision.resize(criteria_size);
+  if (static_cast<uint32_t>(proto_ratings.precision_size()) == criteria_size_) {
+    precision_.resize(criteria_size_);
     std::copy(proto_ratings.precision().data(),
-              proto_ratings.precision().data() + criteria_size,
-              precision.begin());
+              proto_ratings.precision().data() + criteria_size_,
+              precision_.begin());
   } else if (proto_ratings.precision_size() == 1) {
-    precision.resize(criteria_size, proto_ratings.precision(0));
+    precision_.resize(criteria_size_, proto_ratings.precision(0));
   } else {
-    precision.resize(criteria_size, Ratings_Precision_FLOAT);
+    precision_.resize(criteria_size_, Ratings_Precision_FLOAT);
   }
-  // Auxiliar structures are not loaded. They'll be loaded on demand.
-  aux_ready = false;
+  count_users();
+  count_items();
+  prepare_aux();
   return true;
 }
 
@@ -137,45 +138,46 @@ void Dataset::save(mcfs::protos::Ratings * proto_ratings) const {
   proto_ratings->clear_maxv();
   proto_ratings->clear_precision();
   proto_ratings->clear_rating();
-  if (criteria_size > 0) {
-    proto_ratings->set_criteria_size(criteria_size);
+  if (criteria_size_ > 0) {
+    proto_ratings->set_criteria_size(criteria_size_);
   }
-  for (uint64_t c = 0; c < criteria_size; ++c) {
-    proto_ratings->add_minv(minv[c]);
-    proto_ratings->add_maxv(maxv[c]);
-    proto_ratings->add_precision(static_cast<Ratings_Precision>(precision[c]));
+  for (uint32_t c = 0; c < criteria_size_; ++c) {
+    proto_ratings->add_minv(minv_[c]);
+    proto_ratings->add_maxv(maxv_[c]);
+    proto_ratings->add_precision(static_cast<Ratings_Precision>(
+        precision_[c]));
   }
-  for (uint64_t r = 0; r < ratings.size(); ++r) {
+  for (uint32_t r = 0; r < ratings_.size(); ++r) {
     mcfs::protos::Rating * rating = proto_ratings->add_rating();
-    rating->set_user(ratings[r].user); // Set user
-    rating->set_item(ratings[r].item); // Set item
+    rating->set_user(ratings_[r].user); // Set user
+    rating->set_item(ratings_[r].item); // Set item
     // Set criteria scores
-    rating->mutable_score()->Reserve(criteria_size);
-    for (uint64_t c = 0; c < criteria_size; ++c) {
-      rating->add_score(ratings[r].scores[c]);
+    rating->mutable_score()->Reserve(criteria_size_);
+    for (uint32_t c = 0; c < criteria_size_; ++c) {
+      rating->add_score(ratings_[r].scores[c]);
     }
   }
 }
 
-void Dataset::info(uint64_t npr) const {
-  printf("Ratings: %lu\n", ratings.size());
-  printf("Criteria size: %lu\n", criteria_size);
+void Dataset::info(uint32_t npr, bool log) const {
+  printf("Ratings: %lu\n", ratings_.size());
+  printf("Criteria size: %u\n", criteria_size_);
   // Print min. value of each criterion
   printf("Min. value:");
-  for (uint64_t c = 0; c < criteria_size; ++c) {
-    printf(" %f", minv[c]);
+  for (uint32_t c = 0; c < criteria_size_; ++c) {
+    printf(" %f", minv_[c]);
   }
   printf("\n");
   // Print max. value of each criterion
   printf("Max. value:");
-  for (uint64_t c = 0; c < criteria_size; ++c) {
-    printf(" %f", maxv[c]);
+  for (uint32_t c = 0; c < criteria_size_; ++c) {
+    printf(" %f", maxv_[c]);
   }
   printf("\n");
   // Print precision of each criterion  printf("Max. value:");
   printf("Precision:");
-  for (uint64_t c = 0; c < criteria_size; ++c) {
-    if (precision[c] == Ratings_Precision_FLOAT) {
+  for (uint32_t c = 0; c < criteria_size_; ++c) {
+    if (precision_[c] == Ratings_Precision_FLOAT) {
       printf(" FLOAT");
     } else {
       printf(" INT");
@@ -183,62 +185,86 @@ void Dataset::info(uint64_t npr) const {
   }
   printf("\n");
   // Print random ratings
-  std::uniform_int_distribution<uint64_t> rand(0, ratings.size()-1);
+  std::uniform_int_distribution<uint32_t> rand(0, ratings_.size()-1);
   for (; npr > 0; --npr) {
-    const uint64_t r = rand(PRNG);
-    printf("[%lu] %u %u", r, ratings[r].user, ratings[r].item);
-    for (uint64_t c = 0; c < criteria_size; ++c) {
-      printf(" %f", ratings[r].scores[c]);
+    const uint32_t r = rand(PRNG);
+    printf("[%u] %u %u", r, ratings_[r].user, ratings_[r].item);
+    for (uint32_t c = 0; c < criteria_size_; ++c) {
+      printf(" %f", ratings_[r].scores[c]);
     }
     printf("\n");
   }
 }
 
-void Dataset::shuffle() {
-  std::uniform_int_distribution<uint64_t> rand(0, ratings.size()-1);
-  for(Rating& r1 : ratings) {
-    Rating& r2 = ratings[rand(PRNG)];
+void Dataset::shuffle(bool prepare) {
+  std::uniform_int_distribution<uint32_t> rand(0, ratings_.size()-1);
+  for(Rating& r1 : ratings_) {
+    Rating& r2 = ratings_[rand(PRNG)];
     std::swap(r1, r2);
   }
-  aux_ready = false;
+  if (prepare) {
+    prepare_aux();
+  }
 }
 
-void Dataset::partition(Dataset * original, Dataset * partition, float f) {
-  original->shuffle();
+void Dataset::partition(Dataset* original, Dataset* partition, float f) {
+  original->shuffle(false);
   partition->clear();
-  const uint64_t new_size_o = static_cast<uint64_t>(f * original->ratings.size());
-  const uint64_t new_size_p = original->ratings.size() - new_size_o;
-  DLOG(INFO) << "Old size: " << original->ratings.size();
+  const uint32_t new_size_o = static_cast<uint32_t>(f * original->ratings_.size());
+  const uint32_t new_size_p = original->ratings_.size() - new_size_o;
+  DLOG(INFO) << "Old size: " << original->ratings_.size();
   DLOG(INFO) << "New size: " << new_size_o;
   DLOG(INFO) << "Partition size: " << new_size_p;
-  partition->criteria_size = original->criteria_size;
-  partition->minv = original->minv;
-  partition->maxv = original->maxv;
-  partition->precision = original->precision;
-  partition->ratings.resize(new_size_p);
-  std::copy(original->ratings.begin() + new_size_o, original->ratings.end(),
-            partition->ratings.begin());
-  original->ratings.resize(new_size_o);
+  partition->criteria_size_ = original->criteria_size_;
+  partition->N_ = original->N_;
+  partition->M_ = original->M_;
+  partition->minv_ = original->minv_;
+  partition->maxv_ = original->maxv_;
+  partition->precision_ = original->precision_;
+  partition->ratings_.resize(new_size_p);
+  std::copy(original->ratings_.begin() + new_size_o, original->ratings_.end(),
+            partition->ratings_.begin());
+  original->ratings_.resize(new_size_o);
   if (new_size_o == 0 || new_size_p == 0) {
     LOG(WARNING) << "Some partition is empty.";
   }
+  original->prepare_aux();
+  partition->prepare_aux();
 }
 
+void Dataset::create_batch(Dataset * other, uint32_t batch_size) const {
+    CHECK_NOTNULL(other);
+    CHECK_GT(ratings_.size(), 0);
+    other->criteria_size_ = criteria_size_;
+    other->minv_ = minv_;
+    other->maxv_ = maxv_;
+    other->precision_ = precision_;
+    other->ratings_.resize(batch_size);
+    std::uniform_real_distribution<float> rand(0.0f, 1.0f);
+    const float p = batch_size / static_cast<float>(ratings_.size());
+    const uint32_t first_rating = static_cast<uint32_t>(
+        rand(PRNG) * ratings_.size());
+    for (uint32_t i = first_rating, j = 0; j < batch_size;
+         i = (i+1)%ratings_.size(), ++j) {
+      if (rand(PRNG) < p) {
+        other->ratings_[j] = ratings_[i];
+      }
+    }
+  }
+
 float Dataset::rmse(const Dataset& a, const Dataset& b) {
-  CHECK_EQ(a.ratings.size(), b.ratings.size());
-  CHECK_EQ(a.criteria_size, b.criteria_size);
+  CHECK_EQ(a.ratings_.size(), b.ratings_.size());
+  CHECK_EQ(a.criteria_size_, b.criteria_size_);
   float s = 0.0f;
-  for (uint64_t r = 0; r < a.ratings.size(); ++r) {
-    for (uint64_t c = 0; c < a.criteria_size; ++c) {
-      const float d = a.ratings[r].scores[c] - b.ratings[r].scores[c];
+  for (uint32_t r = 0; r < a.ratings_.size(); ++r) {
+    for (uint32_t c = 0; c < a.criteria_size_; ++c) {
+      const float d = a.ratings_[r].scores[c] - b.ratings_[r].scores[c];
       s += d * d;
     }
   }
-  const uint64_t total_scores = a.ratings.size() * a.criteria_size;
+  const uint32_t total_scores = a.ratings_.size() * a.criteria_size_;
   return sqrtf(s / total_scores);
 }
-
-
 
 bool Dataset::SortPRatingsByItem::operator() (
     const Rating* a, const Rating* b) const {
@@ -254,124 +280,107 @@ bool Dataset::SortPRatingsByUser::operator() (
   return a->user < b->user;
 }
 
-void Dataset::prepare_aux() const {
-  if (!aux_ready) {
-    ratings_by_user.clear();
-    ratings_by_item.clear();
-    for (const Rating& rating : ratings) {
-      // Create ratings by user...
-      {
-        const auto& it = ratings_by_user.find(rating.user);
-        if (it == ratings_by_user.end()) {
-          ratings_by_user[rating.user] = std::vector<const Rating*>(1, &rating);
-      } else {
-          it->second.push_back(&rating);
-        }
-      }
-      // Create ratings by item...
-      {
-        const auto& it = ratings_by_item.find(rating.item);
-        if (it == ratings_by_item.end()) {
-          ratings_by_item[rating.item] = std::vector<const Rating*>(1, &rating);
-        } else {
-          it->second.push_back(&rating);
-        }
-      }
+Dataset& Dataset::operator = (const Dataset& other) {
+  clear();
+  ratings_ = other.ratings_;
+  criteria_size_ = other.criteria_size_;
+  N_ = other.N_;
+  M_ = other.M_;
+  minv_ = other.minv_;
+  maxv_ = other.maxv_;
+  precision_ = other.precision_;
+  prepare_aux();
+  return *this;
+}
+
+void Dataset::count_users() {
+  N_ = 0;
+  if (ratings_.size() > 0) {
+    for (const Rating& rating : ratings_) {
+      N_ = std::max<uint32_t>(rating.user, N_);
     }
-    for (auto& it : ratings_by_user) {
-      sort(it.second.begin(), it.second.end(), SortPRatingsByItem());
-    }
-    for (auto& it : ratings_by_item) {
-      sort(it.second.begin(), it.second.end(), SortPRatingsByUser());
-    }
-    aux_ready = true;
+    ++N_;
   }
 }
 
-void Dataset::get_ratings_by_item(
-    uint64_t item, const std::vector<const Rating*>** item_ratings) const {
-  CHECK_NOTNULL(item_ratings);
-  prepare_aux();
-  const auto& it = ratings_by_item.find(item);
-  if (it == ratings_by_item.end()) {
-    *item_ratings = NULL;
-  } else {
-    *item_ratings = &(it->second);
+void Dataset::count_items() {
+  M_ = 0;
+  if (ratings_.size() > 0) {
+    for (const Rating& rating : ratings_) {
+      M_ = std::max<uint32_t>(rating.item, M_);
+    }
+    ++M_;
   }
 }
 
-void Dataset::get_common_ratings_by_users(
-    uint64_t user1, uint64_t user2,
-    std::vector<const Rating*>* ratings_u1,
-    std::vector<const Rating*>* ratings_u2) const {
-  CHECK_NOTNULL(ratings_u1);
-  CHECK_NOTNULL(ratings_u2);
-  ratings_u1->clear();
-  ratings_u2->clear();
-  prepare_aux();
-  const auto& it_u1 = ratings_by_user.find(user1);
-  const auto& it_u2 = ratings_by_user.find(user2);
-  // Check whether users have some rating.
-  if (it_u1 == ratings_by_user.end()) {
-    DLOG(WARNING) << "User " << user1 << " has no ratings.";
-    return;
+void Dataset::clear() {
+  criteria_size_ = 0;
+  N_ = 0;
+  M_ = 0;
+  ratings_.clear();
+  ratings_by_user_.clear();
+  ratings_by_item_.clear();
+}
+
+void Dataset::prepare_aux() {
+  ratings_by_user_.clear();
+  ratings_by_item_.clear();
+  ratings_by_user_.resize(N_);
+  ratings_by_item_.resize(M_);
+  for (Rating& rating : ratings_) {
+    ratings_by_user_[rating.user].push_back(&rating);
+    ratings_by_item_[rating.item].push_back(&rating);
   }
-  if (it_u2 == ratings_by_user.end()) {
-    DLOG(WARNING) << "User " << user2 << " has no ratings.";
-    return;
+  for (std::vector<Rating*>& it : ratings_by_user_) {
+    sort(it.begin(), it.end(), SortPRatingsByItem());
   }
-  // Get the common ratings
-  const std::vector<const Rating*>& ratings_by_u1 = it_u1->second;
-  const std::vector<const Rating*>& ratings_by_u2 = it_u2->second;
-  for (uint64_t i = 0, j = 0; i < ratings_by_u1.size() &&
-           j < ratings_by_u2.size(); ) {
-    const Rating * rating_u1 = ratings_by_u1[i];
-    const Rating * rating_u2 = ratings_by_u2[j];
-    if (rating_u1->item == rating_u2->item) {
-      ratings_u1->push_back(rating_u1);
-      ratings_u2->push_back(rating_u2);
-      ++i; ++j;
-    } else if (rating_u1->item < rating_u2->item) {
-      ++i;
-    } else {
-      ++j;
+  for (std::vector<Rating*>& it : ratings_by_item_) {
+    sort(it.begin(), it.end(), SortPRatingsByUser());
+  }
+}
+
+const std::vector<Dataset::Rating*>& Dataset::ratings_by_item(uint32_t item) const {
+  return ratings_by_item_[item];
+}
+
+const std::vector<Dataset::Rating*>& Dataset::ratings_by_user(uint32_t user) const {
+  return ratings_by_user_[user];
+}
+
+void Dataset::init_minv() {
+  minv_.resize(criteria_size_, INFINITY);
+  for (const Rating& rating: ratings_) {
+    for (uint32_t c = 0; c < criteria_size_; ++c) {
+      minv_[c] = std::min(minv_[c], rating.scores[c]);
     }
   }
-  if (ratings_u1->size() == 0) {
-    DLOG(WARNING) << "No common ratings between users "
-                  << user1 << " and " << user2 << ".";
+}
+void Dataset::init_maxv() {
+  maxv_.resize(criteria_size_, -INFINITY);
+  for (const Rating& rating: ratings_) {
+    for (uint32_t c = 0; c < criteria_size_; ++c) {
+      maxv_[c] = std::max(maxv_[c], rating.scores[c]);
+    }
   }
 }
 
 void Dataset::get_scores_from_common_ratings_by_users(
-    uint64_t user1, uint64_t user2,
+    uint32_t user1, uint32_t user2,
     std::vector<float> * ratings_u1,
     std::vector<float> * ratings_u2) const {
   CHECK_NOTNULL(ratings_u1);
   CHECK_NOTNULL(ratings_u2);
   ratings_u1->clear();
   ratings_u2->clear();
-  prepare_aux();
-  const auto& it_u1 = ratings_by_user.find(user1);
-  const auto& it_u2 = ratings_by_user.find(user2);
-  // Check whether users have some rating.
-  if (it_u1 == ratings_by_user.end()) {
-    DLOG(WARNING) << "User " << user1 << " has no ratings.";
-    return;
-  }
-  if (it_u2 == ratings_by_user.end()) {
-    DLOG(WARNING) << "User " << user2 << " has no ratings.";
-    return;
-  }
   // Get the common ratings
-  const std::vector<const Rating*>& ratings_by_u1 = it_u1->second;
-  const std::vector<const Rating*>& ratings_by_u2 = it_u2->second;
-  for (uint64_t i = 0, j = 0; i < ratings_by_u1.size() &&
+  const std::vector<Rating*>& ratings_by_u1 = ratings_by_user_[user1];
+  const std::vector<Rating*>& ratings_by_u2 = ratings_by_user_[user2];
+  for (uint32_t i = 0, j = 0; i < ratings_by_u1.size() &&
            j < ratings_by_u2.size(); ) {
     const Rating * rating_u1 = ratings_by_u1[i];
     const Rating * rating_u2 = ratings_by_u2[j];
     if (rating_u1->item == rating_u2->item) {
-      for(uint64_t c = 0; c < criteria_size; ++c) {
+      for(uint32_t c = 0; c < criteria_size_; ++c) {
         ratings_u1->push_back(rating_u1->scores[c]);
         ratings_u2->push_back(rating_u2->scores[c]);
       }
@@ -385,5 +394,37 @@ void Dataset::get_scores_from_common_ratings_by_users(
   if (ratings_u1->size() == 0) {
     DLOG(WARNING) << "No common ratings between users "
                   << user1 << " and " << user2 << ".";
+  }
+}
+
+
+void Dataset::to_normal_scale() {
+  for (Rating& rat: ratings_) {
+    for (uint32_t c = 0; c < rat.scores.size(); ++c) {
+      if (maxv_[c] != minv_[c]) {
+        rat.scores[c] = (rat.scores[c] - minv_[c])/(maxv_[c] - minv_[c]);
+      } else {
+        rat.scores[c] = 0;
+      }
+    }
+  }
+}
+
+void Dataset::to_original_scale() {
+  for (Rating& rat: ratings_) {
+    for (uint32_t c = 0; c < rat.scores.size(); ++c) {
+      rat.scores[c] = rat.scores[c]*(maxv_[c] - minv_[c]) + minv_[c];
+      if (precision_[c] == mcfs::protos::Ratings_Precision_INT) {
+        rat.scores[c] = round(rat.scores[c]);
+      }
+    }
+  }
+}
+
+void Dataset::erase_scores() {
+  for (Rating& rating : ratings_) {
+    for (float& x: rating.scores) {
+      x = 0.0f;
+    }
   }
 }

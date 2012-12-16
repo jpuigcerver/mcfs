@@ -25,6 +25,7 @@
 #include <dataset.h>
 #include <model.h>
 #include <neighbours-model.h>
+#include <pmf-model.h>
 #include <protos/neighbours-model.pb.h>
 
 DEFINE_string(mtype, "neighbours", "Model type");
@@ -48,11 +49,12 @@ int main(int argc, char ** argv) {
   if (FLAGS_mtype == "neighbours") {
     model = CHECK_NOTNULL(new NeighboursModel());
   } else if (FLAGS_mtype == "pmf") {
-    LOG(FATAL) << "PMF model not implemented yet!";
+    model = CHECK_NOTNULL(new PMFModel());
   } else {
     LOG(FATAL) << "Unknown model type: \"" << FLAGS_mtype << "\"";
   }
   CHECK(model->load(FLAGS_mfile));
+  model->info(true);
   // Test the model
   Dataset test_partition;
   CHECK(test_partition.load(FLAGS_test));

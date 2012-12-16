@@ -110,7 +110,7 @@ bool NeighboursModel::load(const NeighboursModelConfig& config) {
 }
 
 bool NeighboursModel::save(NeighboursModelConfig * config) const {
-  if (data_.get_ratings_size() > 0) {
+  if (data_.ratings_size() > 0) {
     data_.save(config->mutable_ratings());
   }
   config->set_k(K_);
@@ -120,7 +120,9 @@ bool NeighboursModel::save(NeighboursModelConfig * config) const {
 
 bool NeighboursModel::save(const std::string& filename) const {
   NeighboursModelConfig config;
-  save(&config);
+  if (!save(&config)) {
+    return false;
+  }
   // Write protocol buffer
   int fd = open(filename.c_str(), O_CREAT | O_WRONLY | O_TRUNC,
                 S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -141,15 +143,9 @@ bool NeighboursModel::save(const std::string& filename) const {
 
 float NeighboursModel::train(const Dataset& train_set) {
   data_ = train_set;
+  info();
   // The error on the training data is always 0.0 for this model
   return 0.0f;
-}
-
-float NeighboursModel::test(const Dataset& test_set) const {
-  Dataset pred_ratings;
-  pred_ratings.copy_empty(test_set);
-  CLOCK(test(&pred_ratings.mutable_ratings()));
-  return Dataset::rmse(test_set, pred_ratings);
 }
 
 class UserPair {
@@ -184,22 +180,23 @@ class UserPair {
 };
 
 void NeighboursModel::test(std::vector<Rating>* test_set) const {
+  DLOG(INFO) << "NeighboursModel::test()";
   CHECK_NOTNULL(test_set);
   std::map<UserPair, float> users_similarity;
   // For each user_item to rate...
   for(Rating& pred_rating : *test_set) {
     // Get the users that rated the item
-    const std::vector<const Rating*>* item_ratings_ptr;
-    data_.get_ratings_by_item(pred_rating.item, &item_ratings_ptr);
-    if (item_ratings_ptr == NULL) {
+    const std::vector<Rating*> item_ratings =
+        data_.ratings_by_item(pred_rating.item);
+    if (item_ratings.size() == 0) {
       LOG(WARNING) << "Item " << pred_rating.item << " not rated before.";
       continue;
     }
     // For each rating of the item ...
     std::vector<std::pair<float, const Rating*> > weighted_ratings;
-    weighted_ratings.reserve(item_ratings_ptr->size());
+    weighted_ratings.reserve(item_ratings.size());
     const Rating* exact_match = NULL;
-    for (const Dataset::Rating* data_rating : *item_ratings_ptr) {
+    for (const Dataset::Rating* data_rating : item_ratings) {
       if (data_rating->user == pred_rating.user) {
         exact_match = data_rating;
         break;
@@ -243,8 +240,8 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
     std::sort(weighted_ratings.begin(), weighted_ratings.end(),
               std::greater<std::pair<float, const Rating*> >());
     // Determine the maximum number of neighbours to use in the prediction
-    const uint64_t max_neighbours =
-        K_ == 0 ? weighted_ratings.size() : std::min<uint64_t>(
+    const uint32_t max_neighbours =
+        K_ == 0 ? weighted_ratings.size() : std::min<uint32_t>(
             K_, weighted_ratings.size());
     if (weighted_ratings[0].first == INFINITY) {
       // Compute the predicted rating where there are users with
@@ -252,38 +249,91 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
       // In this case, the predicted rating is the average
       // among those users.
       // 'r' stores the number of users with similarity = INFINITY
-      uint64_t r = 0;
+      uint32_t r = 0;
       for (; r < max_neighbours && weighted_ratings[r].first == INFINITY; ++r) {
         const Rating * rat = weighted_ratings[r].second;
-        for (uint64_t c = 0; c < rat->scores.size(); ++c) {
+        for (uint32_t c = 0; c < rat->scores.size(); ++c) {
           pred_rating.scores[c] += rat->scores[c];
         }
       }
       // Normalize rating
-      for (uint64_t c = 0; c < data_.get_criteria_size(); ++c) {
+      for (uint32_t c = 0; c < data_.criteria_size(); ++c) {
         pred_rating.scores[c] /= r;
-        if (data_.get_precision(c) == Ratings_Precision_INT) {
+        if (data_.precision(c) == Ratings_Precision_INT) {
           pred_rating.scores[c] = round(pred_rating.scores[c]);
         }
       }
     } else {
       // Compute the predicted rating
       float sum_f = 0.0f;
-      for (uint64_t r = 0; r < max_neighbours; ++r) {
+      for (uint32_t r = 0; r < max_neighbours; ++r) {
         const float f = weighted_ratings[r].first;
         const Rating * rat = weighted_ratings[r].second;
         sum_f += f;
-        for (uint64_t c = 0; c < rat->scores.size(); ++c) {
+        for (uint32_t c = 0; c < rat->scores.size(); ++c) {
           pred_rating.scores[c] += rat->scores[c] * f;
         }
       }
       // Normalize rating
-      for (uint64_t c = 0; c < data_.get_criteria_size(); ++c) {
+      for (uint32_t c = 0; c < data_.criteria_size(); ++c) {
         pred_rating.scores[c] /= sum_f;
-        if (data_.get_precision(c) == Ratings_Precision_INT) {
+        if (data_.precision(c) == Ratings_Precision_INT) {
           pred_rating.scores[c] = round(pred_rating.scores[c]);
         }
       }
     }
   }
+}
+
+void NeighboursModel::info(bool log) const {
+  if (log) {
+    LOG(INFO) << "K = " << K_;
+  } else {
+    printf("K = %u\n", K_);
+  }
+  switch (similarity_code_) {
+    case NeighboursModelConfig_Similarity_COSINE:
+      if (log) { LOG(INFO) << "Similarity = COSINE"; }
+      else { printf("Similarity = COSINE\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_COSINE_SQRT:
+      if (log) { LOG(INFO) << "Similarity = COSINE_SQRT"; }
+      else { printf("Similarity = COSINE_SQRT\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_COSINE_POW2:
+      if (log) { LOG(INFO) << "Similarity = COSINE_POW2"; }
+      else { printf("Similarity = COSINE_POW2\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_COSINE_EXPO:
+      if (log) { LOG(INFO) << "Similarity = COSINE_EXPO"; }
+      else { printf("Similarity = COSINE_EXPO\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_INV_NORM_P1:
+      if (log) { LOG(INFO) << "Similarity = INV_NORM_P1"; }
+      else { printf("Similarity = INV_NORM_P1\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_INV_NORM_P2:
+      if (log) { LOG(INFO) << "Similarity = INV_NORM_P2"; }
+      else { printf("Similarity = INV_NORM_P2\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_INV_NORM_PI:
+      if (log) { LOG(INFO) << "Similarity = INV_NORM_PI"; }
+      else { printf("Similarity = INV_NORM_PI\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_I_N_P1_EXPO:
+      if (log) { LOG(INFO) << "Similarity = I_N_P1_EXPO"; }
+      else { printf("Similarity = I_N_P1_EXPO\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_I_N_P2_EXPO:
+      if (log) { LOG(INFO) << "Similarity = I_N_P2_EXPO"; }
+      else { printf("Similarity = I_N_P2_EXPO\n"); }
+      break;
+    case NeighboursModelConfig_Similarity_I_N_PI_EXPO:
+      if (log) { LOG(INFO) << "Similarity = I_N_PI_EXPO"; }
+      else { printf("Similarity = I_N_PI_EXPO\n"); }
+      break;
+    default:
+      LOG(ERROR) << "Unknown similarity code " << similarity_code_;
+  }
+  data_.info(0, log);
 }

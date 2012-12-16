@@ -1,13 +1,21 @@
 package mcfs.protos;
 
 import "model.proto";
+import "ratings.proto";
 
 message PMFModelConfig {
   extend ModelConfig {
     optional ModelConfig config = 200;
   }
-  required uint32 factors = 1;
-  repeated float y = 2;
-  repeated float v = 3;
-  repeated float w = 4;
+  optional Ratings ratings = 1;
+  optional uint32 factors = 2 [default = 10];
+  repeated float y = 3;
+  repeated float v = 4;
+  repeated float w = 5;
+  // Training options
+  optional float learning_rate = 6 [default = 0.1];
+  optional uint32 max_iters = 7 [default = 100];
+  optional float ly = 8 [default = 0.0];
+  optional float lv = 9 [default = 0.0];
+  optional float lw = 10 [default = 0.0];
 }

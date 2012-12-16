@@ -1,8 +1,15 @@
-CXX_FLAGS=-std=c++11 -Wall -pedantic -I. -g -pg -DNDEBUG
-LD_FLAGS=-lgflags -lglog -lprotobuf -ltcmalloc -g -pg -DNDEBUG
-BINARIES=generate-data-movies dataset-partition dataset-info mcfs-train mcfs-test
+CXX_FLAGS=-std=c++11 -Wall -pedantic -I. -g -pg
+LD_FLAGS=-lgflags -lglog -lprotobuf -ltcmalloc -lblas -g -pg
+BINARIES=generate-data-movies dataset-partition dataset-info \
+	dataset-binarize mcfs-train mcfs-test
 
 all: $(BINARIES)
+
+dataset-binarize.o: dataset-binarize.cc
+	$(CXX) -c $< $(CXX_FLAGS)
+
+dataset-binarize: dataset-binarize.o
+	$(CXX) -o $@ $< protos/ratings.pb.o $(LD_FLAGS)
 
 generate-data-movies.o: generate-data-movies.cc
 	$(CXX) -c $< $(CXX_FLAGS)
@@ -25,20 +32,26 @@ dataset-info: dataset-info.o dataset.o
 dataset.o: dataset.cc dataset.h defines.h
 	$(CXX) -c $< $(CXX_FLAGS)
 
+model.o: model.cc model.h
+	$(CXX) -c $< $(CXX_FLAGS)
+
 neighbours-model.o: neighbours-model.cc neighbours-model.h similarities.h
+	$(CXX) -c $< $(CXX_FLAGS)
+
+pmf-model.o: pmf-model.cc pmf-model.h
 	$(CXX) -c $< $(CXX_FLAGS)
 
 mcfs-train.o: mcfs-train.cc
 	$(CXX) -c $< $(CXX_FLAGS)
 
-mcfs-train: mcfs-train.o neighbours-model.o dataset.o
+mcfs-train: mcfs-train.o neighbours-model.o model.o pmf-model.o dataset.o
 	$(CXX) -o $@ $^ protos/ratings.pb.o protos/model.pb.o \
         protos/neighbours-model.pb.o protos/pmf-model.pb.o $(LD_FLAGS)
 
 mcfs-test.o: mcfs-test.cc
 	$(CXX) -c $< $(CXX_FLAGS)
 
-mcfs-test: mcfs-test.o neighbours-model.o dataset.o
+mcfs-test: mcfs-test.o model.o pmf-model.o neighbours-model.o dataset.o
 	$(CXX) -o $@ $^ protos/ratings.pb.o protos/model.pb.o \
         protos/neighbours-model.pb.o protos/pmf-model.pb.o $(LD_FLAGS)
 

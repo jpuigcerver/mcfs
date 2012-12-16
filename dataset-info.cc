@@ -23,6 +23,6 @@ int main(int argc, char ** argv) {
 
   Dataset dataset;
   dataset.load(FLAGS_input);
-  dataset.info(FLAGS_n);
+  dataset.info(FLAGS_n, false);
   return 0;
 }

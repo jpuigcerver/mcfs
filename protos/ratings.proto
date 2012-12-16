@@ -10,7 +10,7 @@ message Ratings {
   // Ratings
   repeated Rating rating = 1;
   // Number of criteria scores per rating
-  optional uint64 criteria_size = 2;
+  optional uint32 criteria_size = 2;
   // Min. value in each score
   repeated float minv = 3;
   // Max. value in each score

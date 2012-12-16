@@ -31,7 +31,6 @@
 #include <glog/logging.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <stdio.h>
 #include <tnt/tnt.h>
 #include <random>
 
@@ -67,7 +66,7 @@ int main(int argc, char ** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Check number of users, movies and ratings ratio.
   CHECK_GT(FLAGS_users, 0) <<
-    "The number of users must be greater than zero.";
+      "The number of users must be greater than zero.";
   CHECK_GT(FLAGS_movies, 0) <<
       "The number of movies must be greater than zero.";
   CHECK_GT(FLAGS_fratings, 0.0) <<

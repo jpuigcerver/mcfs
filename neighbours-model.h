@@ -15,7 +15,6 @@ class NeighboursModel : public Model {
  public:
   typedef Dataset::Rating Rating;
   float train(const Dataset& train_set);
-  float test(const Dataset& test_set) const;
   void test(std::vector<Rating>* test_set) const;
   bool save(const std::string& filename) const;
   bool load(const std::string& filename);
@@ -23,13 +22,14 @@ class NeighboursModel : public Model {
   bool load(const NeighboursModelConfig& config);
   bool load_string(const std::string& str);
   bool save_string(std::string* str) const;
+  void info(bool log = true) const;
 
 NeighboursModel() : K_(0),
       similarity_code_(NeighboursModelConfig_Similarity_COSINE),
       similarity_(&StaticCosineSimilarity) {}
  private:
   Dataset data_;
-  uint64_t K_;
+  uint32_t K_;
   NeighboursModelConfig_Similarity similarity_code_;
   const Similarity * similarity_;
 };
