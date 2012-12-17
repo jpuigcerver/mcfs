@@ -101,6 +101,8 @@ int main(int argc, char ** argv) {
     }
   }
   ratings_pb.set_criteria_size(5);
+  ratings_pb.set_num_users(FLAGS_users);
+  ratings_pb.set_num_items(FLAGS_movies);
   for (int i = 0; i < 5; ++i) {
     ratings_pb.add_minv(1.0f);
     ratings_pb.add_maxv(13.0f);

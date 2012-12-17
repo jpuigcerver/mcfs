@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 using mcfs::protos::PMFModelConfig;
+using mcfs::protos::PMFModelConfig_MatrixInit;
 
 class PMFModel : public Model {
  public:
@@ -20,45 +21,27 @@ class PMFModel : public Model {
   bool load(const PMFModelConfig& config);
   bool load_string(const std::string& str);
   bool save_string(std::string* str) const;
-  void info(bool log = true) const;
+  std::string info() const;
   float train_batch(const Dataset& batch);
 
-  PMFModel() : D_(10), max_iters_(100), learning_rate_(0.1f),
-      lY_(0.0f), lV_(0.0f), lW_(0.0f),
-      Y_(NULL), V_(NULL), W_(NULL) {}
+  PMFModel();
+  ~PMFModel();
 
-  void clear() {
-    data_.clear();
-    D_ = 10;
-    max_iters_ = 100;
-    learning_rate_ = 0.1f;
-    lY_ = 0.0f;
-    lV_ = 0.0f;
-    lW_ = 0.0f;
-    if (Y_ != NULL) {
-      delete [] Y_;
-      Y_ = NULL;
-    }
-    if (V_ != NULL) {
-      delete [] V_;
-      V_ = NULL;
-    }
-    if (W_ != NULL) {
-      delete [] W_;
-      W_ = NULL;
-    }
-  }
+  void clear();
  private:
   Dataset data_;
   uint32_t D_;
   uint32_t max_iters_;
   float learning_rate_;
+  float momentum_;
+  PMFModelConfig_MatrixInit matrix_init_id_;
   float lY_;
   float lV_;
   float lW_;
   float* Y_;
   float* V_;
   float* W_;
+  float* HY_; // HY = H + Y
 };
 
 #endif  // PMF_MODEL_H_

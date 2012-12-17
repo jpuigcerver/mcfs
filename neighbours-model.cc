@@ -143,7 +143,7 @@ bool NeighboursModel::save(const std::string& filename) const {
 
 float NeighboursModel::train(const Dataset& train_set) {
   data_ = train_set;
-  info();
+  LOG(INFO) << "Model config:\n" << info();
   // The error on the training data is always 0.0 for this model
   return 0.0f;
 }
@@ -180,16 +180,18 @@ class UserPair {
 };
 
 void NeighboursModel::test(std::vector<Rating>* test_set) const {
-  DLOG(INFO) << "NeighboursModel::test()";
   CHECK_NOTNULL(test_set);
   std::map<UserPair, float> users_similarity;
   // For each user_item to rate...
   for(Rating& pred_rating : *test_set) {
     // Get the users that rated the item
-    const std::vector<Rating*> item_ratings =
+    const std::vector<Rating*>& item_ratings =
         data_.ratings_by_item(pred_rating.item);
     if (item_ratings.size() == 0) {
       LOG(WARNING) << "Item " << pred_rating.item << " not rated before.";
+      for (uint32_t c = 0; c < data_.criteria_size(); ++c) {
+        pred_rating.scores[c] = (data_.maxv(c) - data_.minv(c)) / 2.0f;
+      }
       continue;
     }
     // For each rating of the item ...
@@ -212,12 +214,13 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
             pred_rating.user, data_rating->user, &v_u, &v_i);
         // Compute similarity between users
         f = (*similarity_)(v_u, v_i);
+        CHECK_EQ(isnan(f), 0);
         users_similarity[user_pair] = f;
       } else {
         f = sim_it->second;
       }
       DLOG(INFO) << "Sim(user " << pred_rating.user << ", user "
-                 << data_rating->user << ") = " << f;
+        << data_rating->user << ") = " << f;
       if (f > 0.0) {
         std::pair<float, const Rating*> wrat (f, data_rating);
         weighted_ratings.push_back(wrat);
@@ -243,14 +246,14 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
     const uint32_t max_neighbours =
         K_ == 0 ? weighted_ratings.size() : std::min<uint32_t>(
             K_, weighted_ratings.size());
-    if (weighted_ratings[0].first == INFINITY) {
+    if (isinf(weighted_ratings[0].first)) {
       // Compute the predicted rating where there are users with
       // similarity = INFINITY
       // In this case, the predicted rating is the average
       // among those users.
       // 'r' stores the number of users with similarity = INFINITY
       uint32_t r = 0;
-      for (; r < max_neighbours && weighted_ratings[r].first == INFINITY; ++r) {
+      for (; r < max_neighbours && isinf(weighted_ratings[r].first); ++r) {
         const Rating * rat = weighted_ratings[r].second;
         for (uint32_t c = 0; c < rat->scores.size(); ++c) {
           pred_rating.scores[c] += rat->scores[c];
@@ -262,12 +265,13 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
         if (data_.precision(c) == Ratings_Precision_INT) {
           pred_rating.scores[c] = round(pred_rating.scores[c]);
         }
+        CHECK_EQ(isinf(pred_rating.scores[c]), 0);
       }
     } else {
       // Compute the predicted rating
       float sum_f = 0.0f;
       for (uint32_t r = 0; r < max_neighbours; ++r) {
-        const float f = weighted_ratings[r].first;
+        const float f = weighted_ratings[r].first / weighted_ratings[0].first;
         const Rating * rat = weighted_ratings[r].second;
         sum_f += f;
         for (uint32_t c = 0; c < rat->scores.size(); ++c) {
@@ -280,60 +284,26 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
         if (data_.precision(c) == Ratings_Precision_INT) {
           pred_rating.scores[c] = round(pred_rating.scores[c]);
         }
+        CHECK_EQ(isinf(pred_rating.scores[c]), 0);
       }
     }
   }
 }
 
-void NeighboursModel::info(bool log) const {
-  if (log) {
-    LOG(INFO) << "K = " << K_;
-  } else {
-    printf("K = %u\n", K_);
-  }
-  switch (similarity_code_) {
-    case NeighboursModelConfig_Similarity_COSINE:
-      if (log) { LOG(INFO) << "Similarity = COSINE"; }
-      else { printf("Similarity = COSINE\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_COSINE_SQRT:
-      if (log) { LOG(INFO) << "Similarity = COSINE_SQRT"; }
-      else { printf("Similarity = COSINE_SQRT\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_COSINE_POW2:
-      if (log) { LOG(INFO) << "Similarity = COSINE_POW2"; }
-      else { printf("Similarity = COSINE_POW2\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_COSINE_EXPO:
-      if (log) { LOG(INFO) << "Similarity = COSINE_EXPO"; }
-      else { printf("Similarity = COSINE_EXPO\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_INV_NORM_P1:
-      if (log) { LOG(INFO) << "Similarity = INV_NORM_P1"; }
-      else { printf("Similarity = INV_NORM_P1\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_INV_NORM_P2:
-      if (log) { LOG(INFO) << "Similarity = INV_NORM_P2"; }
-      else { printf("Similarity = INV_NORM_P2\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_INV_NORM_PI:
-      if (log) { LOG(INFO) << "Similarity = INV_NORM_PI"; }
-      else { printf("Similarity = INV_NORM_PI\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_I_N_P1_EXPO:
-      if (log) { LOG(INFO) << "Similarity = I_N_P1_EXPO"; }
-      else { printf("Similarity = I_N_P1_EXPO\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_I_N_P2_EXPO:
-      if (log) { LOG(INFO) << "Similarity = I_N_P2_EXPO"; }
-      else { printf("Similarity = I_N_P2_EXPO\n"); }
-      break;
-    case NeighboursModelConfig_Similarity_I_N_PI_EXPO:
-      if (log) { LOG(INFO) << "Similarity = I_N_PI_EXPO"; }
-      else { printf("Similarity = I_N_PI_EXPO\n"); }
-      break;
-    default:
-      LOG(ERROR) << "Unknown similarity code " << similarity_code_;
-  }
-  data_.info(0, log);
+std::string NeighboursModel::info() const {
+  const size_t buff_size = 50;
+  char buff[buff_size];
+  const std::string similarity_label[] = {
+    "COSINE", "COSINE_SQRT", "COSINE_POW2", "COSINE_EXPO",
+    "INV_NORM_P1", "INV_NORM_P2", "INV_NORM_PI",
+    "I_N_P1_EXPO", "I_N_P2_EXPO", "I_N_PI_EXPO"
+  };
+  std::string msg;
+  snprintf(buff, buff_size, "K = %u\n", K_);
+  msg += buff;
+  snprintf(buff, buff_size, "Similarity = %s\n",
+           similarity_label[similarity_code_].c_str());
+  msg += buff;
+  msg += data_.info(0);
+  return msg;
 }

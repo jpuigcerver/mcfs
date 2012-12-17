@@ -21,4 +21,6 @@ message Ratings {
     INT = 1;
   }
   repeated Precision precision = 5;
+  optional uint32 num_users = 6;
+  optional uint32 num_items = 7;
 }

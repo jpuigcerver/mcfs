@@ -22,7 +22,7 @@ class NeighboursModel : public Model {
   bool load(const NeighboursModelConfig& config);
   bool load_string(const std::string& str);
   bool save_string(std::string* str) const;
-  void info(bool log = true) const;
+  std::string info() const;
 
 NeighboursModel() : K_(0),
       similarity_code_(NeighboursModelConfig_Similarity_COSINE),

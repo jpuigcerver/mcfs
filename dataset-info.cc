@@ -23,6 +23,6 @@ int main(int argc, char ** argv) {
 
   Dataset dataset;
   dataset.load(FLAGS_input);
-  dataset.info(FLAGS_n, false);
+  printf("%s\n", dataset.info(FLAGS_n).c_str());
   return 0;
 }

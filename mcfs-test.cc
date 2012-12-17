@@ -54,7 +54,7 @@ int main(int argc, char ** argv) {
     LOG(FATAL) << "Unknown model type: \"" << FLAGS_mtype << "\"";
   }
   CHECK(model->load(FLAGS_mfile));
-  model->info(true);
+  LOG(INFO) << "Model config:\n" << model->info();
   // Test the model
   Dataset test_partition;
   CHECK(test_partition.load(FLAGS_test));

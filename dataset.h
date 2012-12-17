@@ -20,7 +20,7 @@ Dataset() : criteria_size_(0), N_(0), M_(0) {};
   void shuffle(bool prepare = true);
   bool load(const std::string& filename);
   bool save(const std::string&, bool ascii = false) const;
-  void info(uint32_t npr = 0, bool log = true) const;
+  std::string info(uint32_t npr = 0) const;
   static void partition(Dataset * original, Dataset * partition, float f);
   static float rmse(const Dataset& a, const Dataset& b);
 
@@ -50,7 +50,7 @@ Dataset() : criteria_size_(0), N_(0), M_(0) {};
 
   void clear();
   void erase_scores();
-  void create_batch(Dataset * other, uint32_t batch_size) const;
+  void copy(Dataset* other, size_t i, size_t n) const;
 
   const std::vector<Rating*>& ratings_by_item(uint32_t item) const;
   const std::vector<Rating*>& ratings_by_user(uint32_t user) const;

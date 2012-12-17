@@ -15,7 +15,7 @@ class Model {
   virtual bool load(const std::string& filename) = 0;
   virtual bool load_string(const std::string& str) = 0;
   virtual bool save_string(std::string* str) const = 0;
-  virtual void info(bool log = true) const = 0;
+  virtual std::string info() const = 0;
   virtual float test(const Dataset& test_set, bool to_orig = false) const;
 };
 

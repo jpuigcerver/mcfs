@@ -20,15 +20,19 @@ int main(int argc, char ** argv) {
   Ratings ratings_pb;
   uint32_t criteria_size = 0;
   char buffer[MAX_LINE_SIZE];
+  uint32_t max_user = 0;
+  uint32_t max_item = 0;
   while (fgets(buffer, MAX_LINE_SIZE, stdin)) {
     // Read user id
     char* end_user = NULL;
     uint32_t user = strtoul(buffer, &end_user, 10);
     CHECK_NOTNULL(end_user);
+    max_user = std::max(user, max_user);
     // Read item id
     char* end_item = NULL;
     uint32_t item = strtoul(end_user, &end_item, 10);
     CHECK_NOTNULL(end_item);
+    max_item = std::max(item, max_item);
     // Add new rating
     Rating* rating = ratings_pb.add_rating();
     rating->set_user(user);
@@ -58,6 +62,8 @@ int main(int argc, char ** argv) {
     CHECK_EQ(criteria_size, criteria_size_item);
   }
   ratings_pb.set_criteria_size(criteria_size);
+  ratings_pb.set_num_users(max_user + 1);
+  ratings_pb.set_num_items(max_item + 1);
   if (FLAGS_minv != "") {
     const char* ptr = FLAGS_minv.c_str();
     for (uint32_t c = 0; c < criteria_size; ++c) {

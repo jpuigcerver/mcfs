@@ -7,15 +7,24 @@ message PMFModelConfig {
   extend ModelConfig {
     optional ModelConfig config = 200;
   }
+  enum MatrixInit {
+    STATIC = 0;
+    NORMAL = 1;
+    UNIFORM = 2;
+  }
   optional Ratings ratings = 1;
   optional uint32 factors = 2 [default = 10];
   repeated float y = 3;
   repeated float v = 4;
   repeated float w = 5;
+  repeated float hy = 6;
   // Training options
-  optional float learning_rate = 6 [default = 0.1];
-  optional uint32 max_iters = 7 [default = 100];
-  optional float ly = 8 [default = 0.0];
-  optional float lv = 9 [default = 0.0];
-  optional float lw = 10 [default = 0.0];
+  optional float learning_rate = 7 [default = 0.1];
+  optional uint32 max_iters = 8 [default = 1000];
+  optional uint32 batch_size = 9 [default = 1000];
+  optional float momentum = 10 [default = 0.0];
+  optional float ly = 11 [default = 0.0];
+  optional float lv = 12 [default = 0.0];
+  optional float lw = 13 [default = 0.0];
+  optional MatrixInit matrix_init = 14 [default = STATIC];
 }
