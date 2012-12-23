@@ -173,10 +173,6 @@ float compute_loss(const Dataset& data, const size_t C, const size_t N,
                    const float lY, const float lV, const float lW) {
   float loss = 0.0f;
   float* Zij = new float [C];
-  float* Z = new float [C * N * M];
-  float* sZ = new float [C * N * M];
-  float* Df = new float [C * N * M];
-  float* Df2 = new float [C * N * M];
   // Basic Loss function computation
   for (const Dataset::Rating& rat: data.ratings()) {
     const uint32_t i = rat.user;
@@ -190,17 +186,13 @@ float compute_loss(const Dataset& data, const size_t C, const size_t N,
       for (uint32_t d = 1; d < D; ++d) {
         Zij[c] += Hci[d] * Vcj[d];
       }
-      Z[c * N * M + i * M + j] = Zij[c];
     }
     // Zij = sigmoid(Zij) [Predicted rating]
     sigmoid(C, Zij);
-    sZ[i * M + j] = Zij[0];
     // Zij = Rij - Zij [Prediction error]
     sxpay(C, -1.0f, rat.scores.data(), Zij);
-    Df[i * M + j] = Zij[0];
     // Zij = Zij .^ 2 [Squared prediction error]
     sxpow2(C, Zij);
-    Df2[i * M + j] = Zij[0];
     loss += cblas_sasum(C, Zij, 1);
   }
   loss /= 2.0;
@@ -430,9 +422,13 @@ void PMFModel::test(std::vector<Dataset::Rating>* test_set) const {
     const uint32_t j = rat.item;
     // Compute Zij
     for (size_t c = 0; c < C; ++c) {
-      const float* Hci = HY_ + c * D_ * N + i * D_;
-      const float* Vcj = V_ + c * D_ * M + j * D_;
-      Zij[c] = cblas_sdot(D_, Hci, 1, Vcj, 1);
+      const float* Hci = HY_ + c * N * D_ + i * D_;
+      const float* Vcj = V_ + c * M * D_ + j * D_;
+      //Zij[c] = cblas_sdot(D, Hci, 1, Vcj, 1);
+      Zij[c] = 0.0f;
+      for (uint32_t d = 1; d < D_; ++d) {
+        Zij[c] += Hci[d] * Vcj[d];
+      }
     }
     // Zij = sigmoid(Zij) [Predicted rating]
     sigmoid(C, Zij);
