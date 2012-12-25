@@ -20,14 +20,29 @@
 #include <time.h>
 
 // Print the elapsed seconds to perform the action A.
-#define CLOCK(A) {clock_t t1 = clock(); A; clock_t t2 = clock(); \
-    LOG(INFO) << "Elapsed seconds: " << (t2-t1)/static_cast<float>(CLOCKS_PER_SEC);}
+#define CLOCK(A) {                                              \
+    clock_t t1 = clock();                                       \
+    A;                                                          \
+    clock_t t2 = clock();                                       \
+    LOG(INFO) << "Elapsed seconds: "                            \
+              << (t2 - t1)/static_cast<float>(CLOCKS_PER_SEC);  \
+  }
+
 // Print the elapsed seconds to perform the action A, with a customized message.
-#define CLOCK_MSG(A,M) {clock_t t1 = clock(); A; clock_t t2 = clock(); \
-    LOG(INFO) << M << (t2-t1)/static_cast<float>(CLOCKS_PER_SEC);}
+#define CLOCK_MSG(A, M) {                                               \
+    clock_t t1 = clock();                                               \
+    A;                                                                  \
+    clock_t t2 = clock();                                               \
+    LOG(INFO) << M << (t2 - t1) / static_cast<float>(CLOCKS_PER_SEC);   \
+  }
+
 // Compute the elapsed seconds to perform the action A, and assign the result
 // to the float pointer P.
-#define CLOCK_PTR(A,P) {clock_t t1 = clock(); A; clock_t t2 = clock(); \
-    *P = (t2-t1)/static_cast<float>(CLOCKS_PER_SEC);}
+#define CLOCK_PTR(A, P) {                                       \
+    clock_t t1 = clock();                                       \
+    A;                                                          \
+    clock_t t2 = clock();                                       \
+    *P = (t2 - t1) / static_cast<float>(CLOCKS_PER_SEC);        \
+  }
 
 #endif  // DEFINES_H_

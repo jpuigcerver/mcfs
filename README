@@ -5,12 +5,49 @@ Intelligent Recommendation Systems and Decision-Support Systems course
 within the Master in Artificial Intelligence, Pattern Recognition and
 Digital Imaging (MIARFID) at the Universitat Politècnica de València (UPV).
 
+mcfs can make predictions using two different models: One based on
+metric similarities between users (i.e. cosine similarity or inverse of the
+euclidean distance) and the other based on a Probabilistic Matrix Factorization
+approach.
+
+mcfs includes several tools to train and test models for predicting
+multi-criteria ratings.
+
+Dataset tools
+=============
+dataset-binarize, dataset-info and dataset-partition are tools to handle
+the dataset files in the mcfs format (a Google's Protocol Buffer).
+dataset-binarize can be used to convert a text file containing a dataset
+to a Protocol Buffer using the mcfs format.
+dataset-info is useful to visualize the main information about a dataset.
+dataset-partition splits a dataset in two parts. Very useful for creating
+training, testing and validation partitions from an original dataset.
+
+Artificial Yahoo! Movies data
+=============================
+generate-data-movies generates an arbitrary amount of data trying to follow
+the distribution of Yahoo! Movies data. The Yahoo! Movies dataset is available
+under petition, but it requires approval from the head of your research
+department. I created this tool to fake real data to test my software.
+
+Main tools (Training and testing)
+=================================
+mcfs-train is used to train a model for predicting the ratings using a
+training partition. A validation partition can also be indicated that may be
+used by the model during the training. This will produce a binary file
+(a Google's Protocol Buffer) containing the trained model.
+mcfs-test is used to test the trained model using testing data. The model
+trained on the previous step can be used to predict new ratings in a test
+partition.
+
 Author
 ======
 Joan Puigcerver <joapuipe@gmail.com>
 
 Requirements
 ============
-- C++ compiler, supporting the C++11 extension. Recommended: g++
-- gflags, http://code.google.com/p/gflags/
-- glog, http://code.google.com/p/google-glog/
+- C++ compiler (C++11 extension needed). Tested using: g++-4.7 and g++-4.8
+- libgflags, http://code.google.com/p/gflags/. Tested using: libgflags-2.0
+- libglog, http://code.google.com/p/google-glog/. Tested using: glog-0.3.2
+- libprotobuf, http://code.google.com/p/protobuf/. Tested using: protobuf-2.4.1
+- libblas, http://www.netlib.org/blas/. Tested using: libblas-1.2

@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-// This file generates data simuating the Yahoo! Movies dataset.
+// This tool generates data simuating the Yahoo! Movies dataset.
 // In the Yahoo! Movies dataset each user provides a 5-criteria rating
 // for each movie. The following assumptions were made to generate the data:
 //   - Author i rates movie j with uniformly distributed probability fratings
@@ -26,6 +26,8 @@
 // the standard deviation of the MovieLens data set was scaled to the range
 // 1..13 (instead of the original 1..5) and each criterion is assumed to have
 // this standard deviation.
+//
+// Example: generate-data-movies -users 100 -movies 100 -fratings 0.1 -seed 1234
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -40,6 +42,7 @@ using google::protobuf::TextFormat;
 using google::protobuf::io::FileOutputStream;
 using mcfs::protos::Ratings;
 using mcfs::protos::Rating;
+using mcfs::protos::Ratings_Precision_FLOAT;
 using mcfs::protos::Ratings_Precision_INT;
 
 DEFINE_uint64(users, 0, "Number of users in the dataset");
@@ -47,6 +50,7 @@ DEFINE_uint64(movies, 0, "Number of movies in the dataset");
 DEFINE_double(fratings, 0.0, "Ratio of ratings to generate");
 DEFINE_uint64(seed, 0, "Pseudo-random number generator seed");
 DEFINE_bool(ascii, false, "Output the ratings in ASCII format");
+DEFINE_bool(zos, false, "Output data in range 0..1");
 
 // Averages provided by [1].
 float AVERAGES[5] = {9.6, 9.9, 9.5, 10.5, 9.5};
@@ -93,10 +97,27 @@ int main(int argc, char ** argv) {
         final_rating->set_user(u);
         final_rating->set_item(m);
         for (int r = 0; r < 5; ++r) {
-          cratings[0][r] = cratings[0][r] * STDDEVS[r] + AVERAGES[r];
-          final_rating->add_score(
-              round(std::max(1.0f, std::min(13.0f, cratings[0][r]))));
+          final_rating->add_score(cratings[0][r] * STDDEVS[r] + AVERAGES[r]);
         }
+      }
+    }
+  }
+  float minr[5] = {INFINITY, INFINITY, INFINITY, INFINITY, INFINITY};
+  float maxr[5] = {-INFINITY, -INFINITY, -INFINITY, -INFINITY, -INFINITY};
+  for (int i = 0; i < ratings_pb.rating_size(); ++i) {
+    for (int j = 0; j < 5; ++j) {
+      minr[j] = std::min(minr[j], ratings_pb.rating(i).score(j));
+      maxr[j] = std::max(maxr[j], ratings_pb.rating(i).score(j));
+    }
+  }
+  for (int i = 0; i < ratings_pb.rating_size(); ++i) {
+    for (int j = 0; j < 5; ++j) {
+      const float nrating =
+          (ratings_pb.rating(i).score(j) - minr[j]) / (maxr[j] - minr[j]);
+      ratings_pb.mutable_rating(i)->set_score(j, nrating);
+      if (!FLAGS_zos) {
+        ratings_pb.mutable_rating(i)->set_score(
+            j, round(ratings_pb.rating(i).score(j) * 12.0f + 1.0f));
       }
     }
   }
@@ -104,9 +125,15 @@ int main(int argc, char ** argv) {
   ratings_pb.set_num_users(FLAGS_users);
   ratings_pb.set_num_items(FLAGS_movies);
   for (int i = 0; i < 5; ++i) {
-    ratings_pb.add_minv(1.0f);
-    ratings_pb.add_maxv(13.0f);
-    ratings_pb.add_precision(Ratings_Precision_INT);
+    if (FLAGS_zos) {
+      ratings_pb.add_minv(0.0f);
+      ratings_pb.add_maxv(1.0f);
+      ratings_pb.add_precision(Ratings_Precision_FLOAT);
+    } else {
+      ratings_pb.add_minv(1.0f);
+      ratings_pb.add_maxv(13.0f);
+      ratings_pb.add_precision(Ratings_Precision_INT);
+    }
   }
   if (FLAGS_ascii) {
     FileOutputStream fs(1);

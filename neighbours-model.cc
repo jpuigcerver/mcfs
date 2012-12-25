@@ -1,16 +1,34 @@
+// Copyright 2012 Joan Puigcerver <joapuipe@gmail.com>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #include <neighbours-model.h>
 
-#include <glog/logging.h>
-#include <algorithm>
-
-#include <defines.h>
 #include <dataset.h>
-#include <similarities.h>
+#include <defines.h>
 #include <fcntl.h>
-#include <protos/ratings.pb.h>
-#include <protos/model.pb.h>
-#include <google/protobuf/text_format.h>
+#include <glog/logging.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
+#include <protos/model.pb.h>
+#include <protos/ratings.pb.h>
+#include <similarities.h>
+
+#include <algorithm>
+#include <functional>
+#include <map>
+#include <utility>
 
 using google::protobuf::TextFormat;
 using google::protobuf::io::FileInputStream;
@@ -51,8 +69,8 @@ bool NeighboursModel::load(const std::string& filename) {
   NeighboursModelConfig config;
   int fd = open(filename.c_str(), O_RDONLY);
   if (fd < 0) {
-    LOG(ERROR) << "NeighboursModel \"" << filename << "\": Failed to open. Error: "
-               << strerror(errno);
+    LOG(ERROR) << "NeighboursModel \"" << filename
+               << "\": Failed to open. Error: " << strerror(errno);
     return false;
   }
   FileInputStream fs(fd);
@@ -127,8 +145,8 @@ bool NeighboursModel::save(const std::string& filename) const {
   int fd = open(filename.c_str(), O_CREAT | O_WRONLY | O_TRUNC,
                 S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (fd < 0) {
-    LOG(ERROR) << "NeighboursModel \"" << filename << "\": Failed to open. Error: "
-               << strerror(errno);
+    LOG(ERROR) << "NeighboursModel \"" << filename
+               << "\": Failed to open. Error: " << strerror(errno);
     return false;
   }
   FileOutputStream fs(fd);
@@ -141,11 +159,14 @@ bool NeighboursModel::save(const std::string& filename) const {
 }
 
 
-float NeighboursModel::train(const Dataset& train_set) {
+float NeighboursModel::train(const Dataset& train_set,
+                             const Dataset& valid_set) {
   data_ = train_set;
   LOG(INFO) << "Model config:\n" << info();
+  const float valid_rmse = Model::test(valid_set);
   // The error on the training data is always 0.0 for this model
-  return 0.0f;
+  LOG(INFO) << "Train RMSE = " << 0.0 << ", Valid RMSE = " << valid_rmse;
+  return valid_rmse;
 }
 
 class UserPair {
@@ -174,6 +195,7 @@ class UserPair {
   uint32_t second() const {
     return u2;
   }
+
  private:
   uint32_t u1;
   uint32_t u2;
@@ -183,7 +205,8 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
   CHECK_NOTNULL(test_set);
   std::map<UserPair, float> users_similarity;
   // For each user_item to rate...
-  for(Rating& pred_rating : *test_set) {
+  for (auto it = test_set->begin(); it != test_set->end(); ++it) {
+    Rating& pred_rating = *it;
     // Get the users that rated the item
     const std::vector<Rating*>& item_ratings =
         data_.ratings_by_item(pred_rating.item);
@@ -222,7 +245,7 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
       DLOG(INFO) << "Sim(user " << pred_rating.user << ", user "
         << data_rating->user << ") = " << f;
       if (f > 0.0) {
-        std::pair<float, const Rating*> wrat (f, data_rating);
+        std::pair<float, const Rating*> wrat(f, data_rating);
         weighted_ratings.push_back(wrat);
       }
     }
@@ -291,17 +314,17 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
 }
 
 std::string NeighboursModel::info() const {
-  const size_t buff_size = 50;
-  char buff[buff_size];
+#define BUFF_SIZE 50
+  char buff[BUFF_SIZE];
   const std::string similarity_label[] = {
     "COSINE", "COSINE_SQRT", "COSINE_POW2", "COSINE_EXPO",
     "INV_NORM_P1", "INV_NORM_P2", "INV_NORM_PI",
     "I_N_P1_EXPO", "I_N_P2_EXPO", "I_N_PI_EXPO"
   };
   std::string msg;
-  snprintf(buff, buff_size, "K = %u\n", K_);
+  snprintf(buff, BUFF_SIZE, "K = %u\n", K_);
   msg += buff;
-  snprintf(buff, buff_size, "Similarity = %s\n",
+  snprintf(buff, BUFF_SIZE, "Similarity = %s\n",
            similarity_label[similarity_code_].c_str());
   msg += buff;
   msg += data_.info(0);

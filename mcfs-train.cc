@@ -44,6 +44,7 @@ int main(int argc, char ** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Check flags
   CHECK_NE(FLAGS_train, "") << "A train partition must be specified.";
+  CHECK_NE(FLAGS_valid, "") << "A validation partition must be specified.";
   PRNG.seed(FLAGS_seed);
   // Create the model to train
   Model * model;
@@ -61,13 +62,9 @@ int main(int argc, char ** argv) {
   // Train the model
   Dataset train_partition;
   CHECK(train_partition.load(FLAGS_train));
-  printf("Train RMSE: %f\n", model->train(train_partition));
-  // Test the model through the validation data
-  if (FLAGS_valid != "") {
-    Dataset valid_partition;
-    CHECK(valid_partition.load(FLAGS_valid));
-    printf("Valid RMSE: %f\n", model->test(valid_partition));
-  }
+  Dataset valid_partition;
+  CHECK(valid_partition.load(FLAGS_valid));
+  printf("Valid RMSE: %f\n", model->train(train_partition, valid_partition));
   // Save the trained model to a file
   if (FLAGS_mfile != "") {
     CHECK(model->save(FLAGS_mfile));
