@@ -1,4 +1,5 @@
 #!/bin/bash
 
+DATASET_BINARIZE=$(dirname $0)/../dataset-binarize
 awk -F:: '{print $1, $2, $3}' | \
-../dataset-binarize -precision INT -minv 1 -maxv 5
+$DATASET_BINARIZE -precision INT -minv 1 -maxv 5
