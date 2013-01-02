@@ -41,6 +41,11 @@ std::default_random_engine PRNG;
 int main(int argc, char ** argv) {
   // Google tools initialization
   google::InitGoogleLogging(argv[0]);
+  google::SetUsageMessage(
+      "This program is used to train a model to predict the ratings "
+      "of a training dataset.\nUsage: " + std::string(argv[0]) +
+      " -mtype pmf -mconf \"learning_rate: 0.01\" -mfile output_model "
+      "-train train_partition -valid validation_partition");
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Check flags
   CHECK_NE(FLAGS_train, "") << "A train partition must be specified.";

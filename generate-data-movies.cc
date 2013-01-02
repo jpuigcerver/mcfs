@@ -67,6 +67,10 @@ TNT::Array2D<float> CORR_L_TNT(5, 5, CORR_L);
 int main(int argc, char ** argv) {
   // Google tools initialization
   google::InitGoogleLogging(argv[0]);
+  google::SetUsageMessage(
+      "This tool generates data simuating the Yahoo! Movies dataset.\n"
+      "Usage: " + std::string(argv[0]) +
+      " -users 1000 -movies 500 -fratings 0.05");
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Check number of users, movies and ratings ratio.
   CHECK_GT(FLAGS_users, 0) <<

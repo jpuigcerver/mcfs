@@ -46,6 +46,10 @@ DEFINE_string(maxv, "", "Max. value in each criteria");
 int main(int argc, char ** argv) {
   // Google tools initialization
   google::InitGoogleLogging(argv[0]);
+  google::SetUsageMessage(
+      "This tool reads from the standard input a list of ratings and creates "
+      "a binary dataset from that list of ratings.\nUsage:" +
+      std::string(argv[0]) + " < plain_text_file > binary_dataset");
   google::ParseCommandLineFlags(&argc, &argv, true);
 
   Ratings ratings_pb;

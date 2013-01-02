@@ -1,9 +1,21 @@
-CXX_FLAGS=-std=c++11 -Wall -pedantic -I. -g -pg
-LD_FLAGS=-lgflags -lglog -lprotobuf -ltcmalloc -lblas -g -pg
+UNAME=$(shell uname)
+
+ifeq ($(UNAME), Darwin)
+LD_OS=-framework accelerate
+endif
+ifeq ($(UNAME), Linux)
+LD_OS=-lblas
+endif
+
+CXX_FLAGS=-std=c++11 -Wall -pedantic -I. -O3 -DNDEBUG
+LD_FLAGS=-lgflags -lglog -lprotobuf $(LD_OS) -DNDEBUG
 BINARIES=generate-data-movies dataset-partition dataset-info \
 	dataset-binarize mcfs-train mcfs-test
 
-all: $(BINARIES)
+all: prot $(BINARIES)
+
+prot:
+	make -C protos
 
 dataset-binarize.o: dataset-binarize.cc
 	$(CXX) -c $< $(CXX_FLAGS)

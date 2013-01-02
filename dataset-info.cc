@@ -38,6 +38,9 @@ std::default_random_engine PRNG;
 int main(int argc, char ** argv) {
   // Google tools initialization
   google::InitGoogleLogging(argv[0]);
+  google::SetUsageMessage(
+      "This tool prints the information of the input dataset.\n"
+      "Usage: " + std::string(argv[0]) + " --input dataset_file");
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Check flags
   CHECK_NE(FLAGS_input, "") <<

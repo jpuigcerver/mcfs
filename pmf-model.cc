@@ -15,7 +15,11 @@
 
 #include <pmf-model.h>
 
+#ifdef __APPLE__
+#include <Accelerate/Accelerate.h>
+#else
 #include <cblas.h>
+#endif
 #include <defines.h>
 #include <fcntl.h>
 #include <glog/logging.h>

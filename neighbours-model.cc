@@ -237,7 +237,7 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
             pred_rating.user, data_rating->user, &v_u, &v_i);
         // Compute similarity between users
         f = (*similarity_)(v_u, v_i);
-        CHECK_EQ(isnan(f), 0);
+        CHECK_EQ(std::isnan(f), 0);
         users_similarity[user_pair] = f;
       } else {
         f = sim_it->second;
@@ -269,14 +269,14 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
     const uint32_t max_neighbours =
         K_ == 0 ? weighted_ratings.size() : std::min<uint32_t>(
             K_, weighted_ratings.size());
-    if (isinf(weighted_ratings[0].first)) {
+    if (std::isinf(weighted_ratings[0].first)) {
       // Compute the predicted rating where there are users with
       // similarity = INFINITY
       // In this case, the predicted rating is the average
       // among those users.
       // 'r' stores the number of users with similarity = INFINITY
       uint32_t r = 0;
-      for (; r < max_neighbours && isinf(weighted_ratings[r].first); ++r) {
+      for (; r < max_neighbours && std::isinf(weighted_ratings[r].first); ++r) {
         const Rating * rat = weighted_ratings[r].second;
         for (uint32_t c = 0; c < rat->scores.size(); ++c) {
           pred_rating.scores[c] += rat->scores[c];
@@ -288,7 +288,7 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
         if (data_.precision(c) == Ratings_Precision_INT) {
           pred_rating.scores[c] = round(pred_rating.scores[c]);
         }
-        CHECK_EQ(isinf(pred_rating.scores[c]), 0);
+        CHECK_EQ(std::isinf(pred_rating.scores[c]), 0);
       }
     } else {
       // Compute the predicted rating
@@ -307,7 +307,7 @@ void NeighboursModel::test(std::vector<Rating>* test_set) const {
         if (data_.precision(c) == Ratings_Precision_INT) {
           pred_rating.scores[c] = round(pred_rating.scores[c]);
         }
-        CHECK_EQ(isinf(pred_rating.scores[c]), 0);
+        CHECK_EQ(std::isinf(pred_rating.scores[c]), 0);
       }
     }
   }

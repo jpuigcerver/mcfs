@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-// This tool splits a dataset in two partitions. The first partition gets
+// This tool splits a dataset into two partitions. The first partition gets
 // f*100% random ratings of the original dataset, and the second one the
 // remaining ratings. Very useful to create a training and test set from
 // a single dataset.
@@ -37,6 +37,10 @@ DEFINE_uint64(seed, 0, "Pseudo-random number generator seed");
 int main(int argc, char ** argv) {
   // Google tools initialization
   google::InitGoogleLogging(argv[0]);
+  google::SetUsageMessage(
+      "This tool splits a dataset into two partitions.\n"
+      "Usage: " + std::string(argv[0]) + " -input original_dataset "
+      "-part1 train_partition -part2 test_partition -f 0.7");
   google::ParseCommandLineFlags(&argc, &argv, true);
   CHECK_NE(FLAGS_input, "") <<
       "An input dataset filename must be specified.";
