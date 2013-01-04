@@ -17,7 +17,7 @@ SIMILARITIES=(COSINE COSINE_SQRT COSINE_POW2 COSINE_EXPO \
 INV_NORM_P1 INV_NORM_P2 INV_NORM_PI I_N_P1_EXPO I_N_P2_EXPO I_N_PI_EXPO)
 MIN_K=1
 MAX_K=$($DATASET_INFO -input $1 | grep 'Users:' | awk '{print $2}')
-INC_K=1
+INC_K=25
 REPS=5
 
 # Explore hyperparameters
@@ -43,6 +43,7 @@ while [ $k -le $MAX_K ]; do
 	    rmse=$(echo $out | awk '{print $3}')
 	    sum_rmse=$(echo "$rmse + $sum_rmse" | bc -l)
 	    r=$[r + 1]
+	    rm -f $train $valid $log
 	done
 	avg_rmse=$(echo "$sum_rmse / $REPS" | bc -l)
 	echo -n " $avg_rmse"

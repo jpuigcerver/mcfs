@@ -10,12 +10,24 @@ metric similarities between users (i.e. cosine similarity or inverse of the
 euclidean distance) and the other based on a Probabilistic Matrix Factorization
 approach.
 
-mcfs includes several tools to train and test models for predicting
+mcfs includes several programs to train and test models for predicting
 multi-criteria ratings.
+
+Author
+======
+Joan Puigcerver <joapuipe@gmail.com>
+
+Requirements
+============
+- C++ compiler (C++11 support needed). Tested using: g++-4.7 and g++-4.8
+- libgflags, http://code.google.com/p/gflags/. Tested using: libgflags-2.0
+- libglog, http://code.google.com/p/google-glog/. Tested using: glog-0.3.2
+- libprotobuf, http://code.google.com/p/protobuf/. Tested using: protobuf-2.4.1
+- libblas, http://www.netlib.org/blas/. Tested using: libblas-1.2
 
 Dataset tools
 =============
-dataset-binarize, dataset-info and dataset-partition are tools to handle
+dataset-binarize, dataset-info and dataset-partition are programs to handle
 the dataset files in the mcfs format (a Google's Protocol Buffer).
 dataset-binarize can be used to convert a text file containing a dataset
 to a Protocol Buffer using the mcfs format.
@@ -28,7 +40,7 @@ Artificial Yahoo! Movies data
 generate-data-movies generates an arbitrary amount of data trying to follow
 the distribution of Yahoo! Movies data. The Yahoo! Movies dataset is available
 under petition, but it requires approval from the head of your research
-department. I created this tool to fake real data to test my software.
+department. I created this program to fake real data to test my software.
 
 Main tools (Training and testing)
 =================================
@@ -40,14 +52,53 @@ mcfs-test is used to test the trained model using testing data. The model
 trained on the previous step can be used to predict new ratings in a test
 partition.
 
-Author
-======
-Joan Puigcerver <joapuipe@gmail.com>
+Training hyperparameters
+========================
+Each model has different training options. For the model based on similarities,
+you can tune your training with these two hyperparameters:
+- k: Numer of neighbours to consider. Any positive integer is accepted.
+- similarity: Similarity function that you want to use. Values:
+    * COSINE: Cosine of the angle between the vectors representing users
+      (i.e. cos(i,i')).
+    * COSINE_SQRT: Square root of the cosine similarity (i.e. sqrt(cos(i,i'))).
+    * COSINE_POW2: Power of two of the cosine similarity (i.e. cos(i,i')^2).
+    * COSINE_EXPO: Exponential of the cosine similarity (i.e. exp(cos(i,i'))).
+    * INV_NORM_P1: Inverse of the 1-norm of difference of the vectors
+      representing users (i.e. 1/norm_1(i-i')).
+    * INV_NORM_P2: Inverse of the 2-norm of the vector i-i' (Euclidean
+      distance).
+    * INV_NORM_PI: Inverse of the infinity-norm of the vector i-i'.
+    * I_N_P1_EXPO: Exponential of INV_NORM_P1.
+    * I_N_P2_EXPO: Exponential of INV_NORM_P2.
+    * I_N_PI_EXPO: Exponential of INV_NORM_PI.
 
-Requirements
-============
-- C++ compiler (C++11 extension needed). Tested using: g++-4.7 and g++-4.8
-- libgflags, http://code.google.com/p/gflags/. Tested using: libgflags-2.0
-- libglog, http://code.google.com/p/google-glog/. Tested using: glog-0.3.2
-- libprotobuf, http://code.google.com/p/protobuf/. Tested using: protobuf-2.4.1
-- libblas, http://www.netlib.org/blas/. Tested using: libblas-1.2
+The model based on Probabilistic Matrix Factorization has more hyperparameters:
+- factors: Number of factors to use. Any positive interger is accepted.
+- learning_rate: Learning rate for gradient descent. Any float value is
+  accepted.
+- max_iters: Number of iterations for gradient descent. Any positive
+  integer is accepted.
+- batch_size: Number of ratings for the mini-batch. Any positive integer
+  is accepted.
+- momentum: Momentum rate for momentum-based gradient descent. Any real value
+  is accepted.
+- ly, lv and lw: Regularization constants. Any float value is accepted.
+- matrix_init: Specifies how to initialize the parameters of the model. Values:
+    * STATIC: For each matrix (Y, V and W), the first element gets the parameter
+      i gets the value (i - 1) * 1.0 / number_of_parameters. This was used
+      mainly for debugging.
+    * NORMAL: Values distributed normally with mean equal to 0 and standard
+      deviation equal to 1.
+    * UNIFORM: Values distributed uniformly in the range [0, 1].
+
+These options can be specified through the -mconf option of mcfs-train. An
+example here:
+./mcfs-train -mtype pmf -mconf "learning_rate: 0.01 matrix_init: UNIFORM" \
+-mfile output_model -train train_partition -valid validation_partition
+
+Notes
+=====
+- Some old versions of GNU C Compiler do not recognize the -std=c++11 option,
+you must use -std=c++0x instead.
+- If you want to get additional info for debugging, re-compile the tools without
+the -DNDEBUG option. This will generate richer logs.
