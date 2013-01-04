@@ -25,6 +25,8 @@ Requirements
 - libprotobuf, http://code.google.com/p/protobuf/. Tested using: protobuf-2.4.1
 - libblas, http://www.netlib.org/blas/. Tested using: libblas-1.2
 
+Tested on Ubuntu 12.10 and Mac OS X 10.8.2.
+
 Dataset tools
 =============
 dataset-binarize, dataset-info and dataset-partition are programs to handle
