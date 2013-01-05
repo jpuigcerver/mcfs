@@ -19,7 +19,8 @@ TITLES=(${TITLES[@]:2})
     while [ $si -lt ${#TITLES[@]} ]; do
 	sim=${TITLES[$si]}
 	sif=$[si + 2]
-	echo -n ", '$1' u 1:$sif t '$sim' w l"
+	lt=$[si + 1]
+	echo -n ", '$1' u 1:$sif t '$sim' w l lt $lt lc $lt"
 	si=$[si + 1]
     done
     echo ""
