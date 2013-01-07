@@ -26,5 +26,5 @@ message PMFModelConfig {
   optional float ly = 11 [default = 0.0];
   optional float lv = 12 [default = 0.0];
   optional float lw = 13 [default = 0.0];
-  optional MatrixInit matrix_init = 14 [default = STATIC];
+  optional MatrixInit matrix_init = 14 [default = UNIFORM];
 }
